@@ -17,12 +17,16 @@ Implementation requirements:
 - Type safe.
 - Maintainable.
 - Testable.
+- avoid magic strings that should be enums types or consts
+- parsing and sanitization should be prayoratized to be handled using zod
 
 Do not:
 
 - over-engineer
 - introduce unnecessary libraries
 - rewrite unrelated code
+- generate multi return type functions (example: string | number | null)
+- use nested loops or nested functions
 
 After implementation:
 
@@ -36,3 +40,4 @@ Find:
 - performance issues
 
 Suggest improvements.
+NEVER touch git commands

@@ -9,3 +9,4 @@ First:
 3. Suggest verification steps.
 
 Only then propose fixes.
+in the end anything you find as long as it is still relevant and was not fixed should be documented in docs/problems.md

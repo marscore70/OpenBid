@@ -12,6 +12,9 @@ Find:
 - security concerns
 - performance problems
 - missing tests
+- magic strings that should be enums types or consts
+- nested loops and nested functions
+- while true and other unclean practises
 
 Rank issues:
 
@@ -21,3 +24,5 @@ Medium
 Low
 
 Be strict.
+
+NEVER touch git commands

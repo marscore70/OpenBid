@@ -1,0 +1,20 @@
+---
+alwaysApply: true
+---
+
+At the very end of EVERY SINGLE response you provide, you must append a file-update block targeting the file `docs/chat.md`.
+
+Format the block exactly like this:
+
+```markdown
+# docs/chat.md
+
+## [Timestamp or Current Context]
+
+**User:** [Insert the exact prompt or answer the user just provided]
+**AI:** [Insert a brief summary or the exact response you just generated]
+
+---
+```
+
+Do not forget this step. Every turn of the conversation must be documented in `docs/chat.md`.

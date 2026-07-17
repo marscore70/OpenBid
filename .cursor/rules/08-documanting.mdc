@@ -1,0 +1,6 @@
+---
+alwaysApply: false
+description: document how to use the project
+---
+
+when you change something fundamental that changes how to use the project how it works or what fetures are implemented document it in the README.md file
