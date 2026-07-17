@@ -13,8 +13,9 @@ This document is the single source of truth for architecture, requirements, back
 | Frontend | React 18, Vite, TypeScript (strict) |
 | UI | PrimeReact (Card, DataTable, Toast, Chart, etc.) |
 | Styling | styled-components; inline `style` only for ≤2 properties |
-| Server state | TanStack Query |
-| Real-time | Single `EventSource` to `/api/stream` |
+| Client state | jotai (list atom + `jotai-family` detail atoms) |
+| HTTP | Axios services (`auctionsService`, `bidService`) |
+| Real-time | Single `EventSource` via `BidStream` (`/api/stream`) |
 | Tests | Vitest |
 | API base | `VITE_API_BASE_URL` (default `http://localhost:3005`) |
 
@@ -58,22 +59,22 @@ OpenBid/
 ### Layers
 
 1. **Presentation** — PrimeReact pages and feature components
-2. **Application** — hooks, `BidStreamProvider`, Query cache patches
+2. **Application** — hooks, thin `BidStreamProvider`, jotai atom patches
 3. **Domain** — pure TS: merge, dedupe, validate, countdown, status, snipe policy
-4. **Infrastructure** — HTTP client, SSE service
+4. **Infrastructure** — Axios HTTP client, SSE `BidStreamService`
 
 ### State
 
-- TanStack Query holds REST snapshots (list + detail).
-- One SSE connection at app shell; events run through domain merge then `queryClient.setQueryData`.
+- jotai holds REST snapshots: `auctionsListAtom` + `auctionDetailAtomFamily`.
+- One SSE connection at app shell (`BidStreamProvider`); events run through domain merge then single-id atom patches.
 - Bid submission: local pending state per auction; reconcile with SSE/GET after POST.
 
 ### Data flow
 
 ```
-REST GET ──► Query cache ◄── domain merge ◄── SSE (dedupe, monotonic bids)
-POST bid ──► pending UI ──► success/error ──► refetch/patch cache
-SSE disconnect ──► reconnect ──► refetch list + open detail
+REST GET ──► jotai atoms ◄── domain merge ◄── SSE / BidStream (dedupe, monotonic bids)
+POST bid ──► pending UI ──► success/error ──► refetch/patch atoms
+SSE disconnect ──► reconnect ──► refetch list + tracked detail ids
 ```
 
 ## 5. Backend API reference
@@ -127,7 +128,7 @@ SSE disconnect ──► reconnect ──► refetch list + open detail
 
 ### Detail
 
-- Fetch detail by id; merge SSE updates into cache.
+- Fetch detail by id; merge SSE updates into detail atoms.
 - Bid form: name (persisted), amount, validation, submit with loading.
 - History: DataTable with virtual scrolling for long lists.
 
@@ -151,7 +152,7 @@ Controlled by [`frontend/src/config/features.ts`](../frontend/src/config/feature
 
 - Trim and length-limit bidder name; strip control characters.
 - React text for all API-driven strings.
-- Patch one auction in list cache on SSE; avoid remounting entire catalog.
+- Patch one auction in the list atom on SSE; avoid remounting entire catalog.
 - Remove countdown intervals when auction ends or component unmounts.
 
 ## 10. Observability
@@ -218,6 +219,8 @@ All MUST checklist items checked; ≥5 tests green; manual verification of 45s S
 |------|----------|
 | 2026-07-17 | React + Vite + TS + PrimeReact + styled-components; `frontend/` folder |
 | 2026-07-17 | Bonuses scaffolded with feature flags; snipe is client-display only |
-| 2026-07-17 | TanStack Query + single SSE provider for cache patches |
+| 2026-07-17 | jotai list + detail `atomFamily` + single `BidStream` SSE provider for atom patches (replaced TanStack Query) |
 | 2026-07-17 | Unit tests under `frontend/tests/` by concern (not under `src/`) |
 | 2026-07-17 | Removed unused Vite template assets (`src/assets/*`, `public/icons.svg`, oxlint stub); kept `public/favicon.svg` |
+| 2026-07-17 | Status/event values as const maps (no magic strings at call sites); Zod for bid/bidder parse+sanitize (`zod@3.25.76`); domain helpers return a single type |
+| 2026-07-17 | Outbid toast only after merge applies amount; `enableSound` reuses/resumes one `AudioContext` |
