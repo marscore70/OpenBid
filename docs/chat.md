@@ -111,3 +111,43 @@
 **AI:** Updated plan stack/architecture/decision log. Merge helpers return `{ auction, applied }`; apply path notifies only via `shouldNotifyOutbidWhenApplied`. enableSound creates/resumes one AudioContext. Marked problems #22/#33/#35 fixed. 37 tests green; tsc clean. Later: cold-start Connected, Zod SSE, atomFamily GC, CSP, etc.
 
 ---
+
+## 2026-07-17 — BidForm lock, history scroll, refresh Q
+
+**User:** BidForm allows huge amounts (breaks UI) and under-min Enter clamps to min — both should lock send preemptively via schema. Hide BidHistoryTable scroll without CSS. Why does catalog Refresh list button exist (plan.md / task.pdf)? Implement via implement.md; review via review.md/security-review.md.
+
+**AI:** Replaced InputNumber with digit-capped InputText; Zod `isBidAmountValid` / `getBidAmountErrorMessage` lock submit + show hint (no min/max clamp). Removed DataTable scrollable/virtual scroller (page scroll; no CSS). Refresh button is not in plan MUST/BONUS or extractable task.pdf text — ad-hoc convenience (problems.md #20 notes retry only on success). Self-review: Medium — lost virtualization vs plan detail requirement; Low — empty bidder still unlocked until submit.
+
+---
+
+## 2026-07-17 — Detail layout, invisible scrolls, My Bids dialog
+
+**User:** Fix bid detail page: left = bid form + info + chart; right = bid history with invisible working scroll; timestamps dd.mm.yy + 24h; My Bids must not cover history; invisible scroll on My Bids + View all Dialog; remove Refresh list. Use implement.md.
+
+**AI:** 50/50 DetailLayout; restored virtualized history with styled invisible scrollbars; `formatBidTimestamp`; sticky capped My Bids + Dialog; removed catalog Refresh. Tests for timestamp format; tsc clean.
+
+---
+
+## 2026-07-17 — date-fns, form row, no page scroll
+
+**User:** Use a library for formatBidTimestamp; put BidForm name/amount side by side; cleaner detail page; no page scroll — only table scroll.
+
+**AI:** Switched to date-fns `format`; BidForm FieldsRow; viewport-locked shell (html/body/PageShell overflow hidden); detail flex layout with scrollHeight=flex on history only; capped chart; cleaned hero.
+
+---
+
+## 2026-07-17 — Empty placeholders, table fix, review loop
+
+**User:** Empty chart/table placeholders; fix missing history table; amount under name; taller chart; implement.md then review.md agent; fix logical review findings.
+
+**AI:** Restored viewport height chain + flex `scrollHeight` table; empty chart always mounts; stacked BidForm; taller chart (280–420px). Review agent ([Review detail page fixes](6db68175-b359-4f03-a849-ab144362b083)): fixed viewport-calc scroll, mobile overflow, invalid timestamps, empty-state tests, shared sort, catalog-owned scroll, chart section gating. 48 tests green.
+
+---
+
+## 2026-07-17 — History table visible, no sort, shared UI primitives
+
+**User:** Fix history table to appear (incl. empty); remove history sorting; no global styles; clean files; move reusable styled-components to shared location; implement.md; only suggest My Bids after server reset.
+
+**AI:** Concrete table height + skip virtualScroller when empty; removed sortBidHistory; shared `layoutPrimitives` + feature `auctionDetailLayout`; no global styles. 46 tests green. Suggested (not implemented) My Bids reconcile options after mock server reset.
+
+---

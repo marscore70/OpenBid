@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "primereact/button";
-import { InputNumber } from "primereact/inputnumber";
 import { InputText } from "primereact/inputtext";
 import { ProgressSpinner } from "primereact/progressspinner";
 import styled from "styled-components";
 import {
+  constrainBidAmountInput,
+  getBidAmountErrorMessage,
   getBidValidationMessage,
+  isBidAmountValid,
+  MAX_BID_AMOUNT_DIGITS,
   minimumAllowedBid,
   validateBidAmount,
 } from "../../domain/bid/validateBidAmount";
@@ -25,7 +28,34 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 420px;
+  max-width: 280px;
+`;
+
+const Field = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+
+  label {
+    font-size: 0.875rem;
+    color: #475569;
+  }
+
+  .p-inputtext {
+    width: 100%;
+  }
+`;
+
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const ErrorText = styled.span`
+  color: #b91c1c;
+  font-size: 0.875rem;
 `;
 
 type BidFormProps = {
@@ -43,29 +73,31 @@ export function BidForm({
 }: BidFormProps) {
   const minBid = minimumAllowedBid(currentBid, startPrice);
   const [bidder, setBidder] = useState(loadBidderName());
-  const [amount, setAmount] = useState<number | null>(minBid);
+  const [amountText, setAmountText] = useState(String(minBid));
   const [localError, setLocalError] = useState("");
   const mutation = usePlaceBid(auctionId);
   const { enableNotificationSound } = useBidStream();
 
-  useEffect(() => {
-    setAmount((previous) => {
-      if (previous === null || previous < minBid) {
-        return minBid;
-      }
-      return previous;
-    });
-  }, [minBid]);
+  const amountReady = isBidAmountValid(amountText, currentBid, startPrice);
+  const amountHint = getBidAmountErrorMessage(
+    amountText,
+    currentBid,
+    startPrice,
+  );
+  const canSubmit = !disabled && !mutation.isPending && amountReady;
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setLocalError("");
+    if (!canSubmit) {
+      return;
+    }
     enableNotificationSound();
 
     try {
       const cleanName = parseBidderName(bidder);
       saveBidderName(cleanName);
-      const validAmount = validateBidAmount(amount, currentBid, startPrice);
+      const validAmount = validateBidAmount(amountText, currentBid, startPrice);
       mutation.mutate({
         auctionId,
         bidder: cleanName,
@@ -79,47 +111,53 @@ export function BidForm({
   const serverError = mutation.isError
     ? getBidErrorMessage(mutation.error)
     : "";
+  const formError = localError || serverError || amountHint;
 
   return (
     <Form onSubmit={onSubmit}>
-      <label htmlFor="bidder">Your name</label>
-      <InputText
-        id="bidder"
-        value={bidder}
-        maxLength={MAX_BIDDER_LENGTH}
-        keyfilter={/[^\u0000-\u001F\u007F]/}
-        onChange={(e) => setBidder(constrainBidderNameInput(e.target.value))}
-        disabled={disabled || mutation.isPending}
-      />
-      <label htmlFor="amount">Bid amount ($)</label>
-      <InputNumber
-        inputId="amount"
-        value={amount}
-        onValueChange={(e) => setAmount(e.value ?? null)}
-        min={minBid}
-        max={Number.MAX_SAFE_INTEGER}
-        step={1}
-        minFractionDigits={0}
-        maxFractionDigits={0}
-        disabled={disabled || mutation.isPending}
-        mode="decimal"
-        useGrouping={false}
-        allowEmpty
-      />
-      {(localError || serverError) && (
-        <span role="alert" style={{ color: "#b91c1c" }}>
-          {localError || serverError}
-        </span>
+      <Field>
+        <label htmlFor="bidder">Your name</label>
+        <InputText
+          id="bidder"
+          value={bidder}
+          maxLength={MAX_BIDDER_LENGTH}
+          keyfilter={/[^\u0000-\u001F\u007F]/}
+          onChange={(e) => setBidder(constrainBidderNameInput(e.target.value))}
+          disabled={disabled || mutation.isPending}
+        />
+      </Field>
+      <Field>
+        <label htmlFor="amount">Bid amount ($)</label>
+        <InputText
+          id="amount"
+          value={amountText}
+          maxLength={MAX_BID_AMOUNT_DIGITS}
+          keyfilter="int"
+          inputMode="numeric"
+          onChange={(e) =>
+            setAmountText(constrainBidAmountInput(e.target.value))
+          }
+          disabled={disabled || mutation.isPending}
+          aria-invalid={Boolean(amountHint)}
+          aria-describedby={amountHint ? "amount-error" : undefined}
+        />
+      </Field>
+      {formError && (
+        <ErrorText id="amount-error" role="alert">
+          {formError}
+        </ErrorText>
       )}
-      <Button
-        type="submit"
-        label={mutation.isPending ? "Placing bid…" : "Place bid"}
-        disabled={disabled || mutation.isPending}
-        icon={mutation.isPending ? undefined : "pi pi-check"}
-      />
-      {mutation.isPending && (
-        <ProgressSpinner style={{ width: "32px", height: "32px" }} />
-      )}
+      <Actions>
+        <Button
+          type="submit"
+          label={mutation.isPending ? "Placing bid…" : "Place bid"}
+          disabled={!canSubmit}
+          icon={mutation.isPending ? undefined : "pi pi-check"}
+        />
+        {mutation.isPending && (
+          <ProgressSpinner style={{ width: "28px", height: "28px" }} />
+        )}
+      </Actions>
     </Form>
   );
 }

@@ -19,6 +19,7 @@ Implementation requirements:
 - Testable.
 - avoid magic strings that should be enums types or consts
 - parsing and sanitization should be prayoratized to be handled using zod
+- if you can do it using a npm pack it is allways better than doing it yourself
 
 Do not:
 

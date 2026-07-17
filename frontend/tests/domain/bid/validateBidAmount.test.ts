@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import {
+  constrainBidAmountInput,
+  getBidAmountErrorMessage,
+  isBidAmountValid,
+  MAX_BID_AMOUNT_DIGITS,
   minimumAllowedBid,
   validateBidAmount,
 } from "../../../src/domain/bid/validateBidAmount";
@@ -106,5 +110,31 @@ describe("validateBidAmount", () => {
   it("minimumAllowedBid is one above the higher of currentBid and startPrice", () => {
     expect(minimumAllowedBid(100, 50)).toBe(101);
     expect(minimumAllowedBid(100, 200)).toBe(201);
+  });
+
+  it("constrainBidAmountInput strips non-digits and caps length", () => {
+    expect(constrainBidAmountInput("12a3$")).toBe("123");
+    expect(constrainBidAmountInput("1e3")).toBe("13");
+    expect(constrainBidAmountInput("9".repeat(MAX_BID_AMOUNT_DIGITS + 5))).toBe(
+      "9".repeat(MAX_BID_AMOUNT_DIGITS),
+    );
+  });
+
+  it("isBidAmountValid mirrors schema without throwing", () => {
+    expect(isBidAmountValid(101, currentBid, startPrice)).toBe(true);
+    expect(isBidAmountValid(50, currentBid, startPrice)).toBe(false);
+    expect(isBidAmountValid("9999999999999999", currentBid, startPrice)).toBe(
+      false,
+    );
+    expect(isBidAmountValid("", currentBid, startPrice)).toBe(false);
+  });
+
+  it("getBidAmountErrorMessage is silent for blank and verbose when invalid", () => {
+    expect(getBidAmountErrorMessage("", currentBid, startPrice)).toBe("");
+    expect(getBidAmountErrorMessage(null, currentBid, startPrice)).toBe("");
+    expect(getBidAmountErrorMessage(50, currentBid, startPrice)).toMatch(
+      /higher than/,
+    );
+    expect(getBidAmountErrorMessage(101, currentBid, startPrice)).toBe("");
   });
 });
