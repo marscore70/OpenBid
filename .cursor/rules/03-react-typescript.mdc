@@ -27,6 +27,10 @@ Components:
 - Preffer PrimeReact over custom implementation when possible
 - Avoid raw css use in line style if it is up to 2 properties otherwise use styled-components
 - when needed to show a lot of data prioritize virtualization and pagination
+- keep components under 100 lines
+- avoid callbacks when possible
+- no infinate loops
+- try to pass the minimal amount of veribales objects or data between components
 
 State:
 
@@ -61,3 +65,7 @@ Always consider:
 - keyboard navigation
 - semantic HTML
 - ARIA when needed
+
+When adding or using a package allways use spesific version and search that the version is considered safe right now to avoid poisened packages
+
+frontend tests should be under /frontend/tests and should be organized there in a way that indecates what they test
