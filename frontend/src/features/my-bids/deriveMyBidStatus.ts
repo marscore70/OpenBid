@@ -1,5 +1,6 @@
 import type { AuctionSummary } from '../../shared/types/AuctionSummary';
-import type { MyBidStatus } from '../../shared/types/MyBidStatus';
+import { AuctionStatus } from '../../shared/types/AuctionStatus';
+import { MyBidStatus } from '../../shared/types/MyBidStatus';
 
 export type MyBidEntry = {
   auctionId: string;
@@ -7,28 +8,25 @@ export type MyBidEntry = {
   image: string;
   status: MyBidStatus;
   currentBid: number;
-  myLastBid?: number;
+  myLastBid: number;
 };
 
 export function deriveMyBidStatus(
   auction: AuctionSummary,
   username: string,
-  myLastBid: number | undefined,
-): MyBidStatus | null {
-  if (!myLastBid) {
-    return null;
-  }
-  if (auction.status === 'ended') {
+  myLastBid: number,
+): MyBidStatus {
+  if (auction.status === AuctionStatus.Ended) {
     if (auction.currentBidder === username) {
-      return 'won';
+      return MyBidStatus.Won;
     }
-    return 'lost';
+    return MyBidStatus.Lost;
   }
   if (auction.currentBidder === username) {
-    return 'winning';
+    return MyBidStatus.Winning;
   }
   if (myLastBid >= auction.currentBid) {
-    return 'winning';
+    return MyBidStatus.Winning;
   }
-  return 'outbid';
+  return MyBidStatus.Outbid;
 }

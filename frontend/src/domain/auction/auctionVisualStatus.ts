@@ -1,5 +1,5 @@
-import type { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
-import type { AuctionStatus } from '../../shared/types/AuctionStatus';
+import { AuctionStatus } from '../../shared/types/AuctionStatus';
+import { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
 import { computeTimeRemaining } from './computeTimeRemaining';
 
 const URGENT_THRESHOLD_MS = 30_000;
@@ -9,15 +9,15 @@ export function auctionVisualStatus(
   endsAt: number,
   nowMs: number,
 ): AuctionVisualStatus {
-  if (status === 'ended') {
-    return 'ended';
+  if (status === AuctionStatus.Ended) {
+    return AuctionVisualStatus.Ended;
   }
   const { totalMs, expired } = computeTimeRemaining(endsAt, nowMs);
   if (expired || totalMs <= 0) {
-    return 'ended';
+    return AuctionVisualStatus.Ended;
   }
   if (totalMs < URGENT_THRESHOLD_MS) {
-    return 'urgent';
+    return AuctionVisualStatus.Urgent;
   }
-  return 'active';
+  return AuctionVisualStatus.Active;
 }

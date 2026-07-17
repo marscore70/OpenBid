@@ -1,89 +1,135 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { HttpError } from '../../infrastructure/api/httpClient';
-import { isPlaceBidHttpError, placeBid } from '../../infrastructure/api/bidApi';
-import { queryKeys } from '../../shared/queryKeys';
-import type { AuctionSummary } from '../../shared/types/AuctionSummary';
-import type { AuctionDetail } from '../../shared/types/AuctionDetail';
-import { applyEndedFromHttpConflict } from '../../domain/auction/mergeAuctionState';
-import { recordMyBid } from '../../shared/storage/bidderStorage';
-import { logger } from '../../shared/logging/logger';
+import { useState } from "react";
+import { HttpError } from "../../infrastructure/api/httpClient";
+import {
+  bidService,
+  isPlaceBidHttpError,
+  type PlaceBidPayload,
+} from "../../infrastructure/api/bidService";
+import { applyEndedFromHttpConflict } from "../../domain/auction/mergeAuctionEnded";
+import { recordMyBid } from "../../shared/storage/bidderStorage";
+import { logger } from "../../shared/logging/logger";
+import { AuctionStatus } from "../../shared/types/AuctionStatus";
+import { useBidStream } from "../../app/BidStreamProvider";
+import {
+  fetchAuctionDetail,
+  updateLoadedAuctionDetail,
+} from "../../state/auctionDetailAtom";
+import { updateAuctionSummaryInList } from "../../state/auctionsListAtom";
+
+type PlaceBidMutationState = {
+  isPending: boolean;
+  isError: boolean;
+  error: unknown;
+};
+
+const idleMutationState: PlaceBidMutationState = {
+  isPending: false,
+  isError: false,
+  error: null,
+};
 
 export function usePlaceBid(auctionId: string) {
-  const queryClient = useQueryClient();
+  const { clearDisplayTiming } = useBidStream();
+  const [mutation, setMutation] =
+    useState<PlaceBidMutationState>(idleMutationState);
 
-  return useMutation({
-    mutationFn: placeBid,
-    onSuccess: (result, variables) => {
-      recordMyBid({
-        auctionId: variables.auctionId,
-        amount: variables.amount,
-        timestamp: Date.now(),
+  const mutate = (payload: PlaceBidPayload) => {
+    setMutation({ isPending: true, isError: false, error: null });
+
+    void bidService
+      .placeBid(payload)
+      .then((result) => {
+        recordMyBid({
+          auctionId: payload.auctionId,
+          amount: payload.amount,
+          timestamp: Date.now(),
+        });
+        logger.info("Bid placed", { bid_id: result.bid_id, auctionId });
+        updateAuctionSummaryInList(auctionId, (summary) => {
+          if (result.currentBid <= summary.currentBid) {
+            return summary;
+          }
+          return {
+            ...summary,
+            currentBid: result.currentBid,
+            currentBidder: payload.bidder,
+            bidCount: summary.bidCount + 1,
+          };
+        });
+        void fetchAuctionDetail(auctionId);
+        setMutation(idleMutationState);
+      })
+      .catch((error: unknown) => {
+        handlePlaceBidError(error, auctionId, clearDisplayTiming);
+        setMutation({ isPending: false, isError: true, error });
       });
-      logger.info('Bid placed', { bid_id: result.bid_id, auctionId });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.auctionDetail(auctionId) });
-    },
-    onError: (error) => {
-      if (!isPlaceBidHttpError(error)) {
-        logger.error('Bid failed', { error: String(error) });
-        return;
-      }
-      const body = error.body as {
-        currentBid?: number;
-        winner?: string | null;
-        finalPrice?: number;
-      };
-      if (error.status === 400 && typeof body.currentBid === 'number') {
-        queryClient.setQueryData<AuctionDetail>(
-          queryKeys.auctionDetail(auctionId),
-          (old) => (old ? { ...old, currentBid: body.currentBid! } : old),
-        );
-        queryClient.setQueryData<AuctionSummary[]>(queryKeys.auctions, (old) =>
-          old?.map((a) =>
-            a.id === auctionId ? { ...a, currentBid: body.currentBid! } : a,
-          ),
-        );
-        logger.warn('Bid rejected: outbid during delay', { auctionId });
-      }
-      if (error.status === 409) {
-        const displayTiming = new Map();
-        queryClient.setQueryData<AuctionSummary[]>(queryKeys.auctions, (old) =>
-          old?.map((a) =>
-            a.id === auctionId
-              ? applyEndedFromHttpConflict(
-                  a,
-                  body.winner ?? null,
-                  body.finalPrice ?? a.currentBid,
-                  displayTiming,
-                )
-              : a,
-          ),
-        );
-        queryClient.setQueryData<AuctionDetail>(
-          queryKeys.auctionDetail(auctionId),
-          (old) =>
-            old
-              ? {
-                  ...old,
-                  status: 'ended',
-                  currentBidder: body.winner ?? null,
-                  currentBid: body.finalPrice ?? old.currentBid,
-                }
-              : old,
-        );
-        logger.warn('Bid rejected: auction ended', { auctionId });
-      }
-    },
-  });
+  };
+
+  return {
+    mutate,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+  };
+}
+
+function handlePlaceBidError(
+  error: unknown,
+  auctionId: string,
+  clearDisplayTiming: (auctionId: string) => void,
+): void {
+  if (!isPlaceBidHttpError(error)) {
+    logger.error("Bid failed", { error: String(error) });
+    return;
+  }
+
+  const body = error.body as {
+    currentBid?: number;
+    winner?: string | null;
+    finalPrice?: number;
+  };
+
+  if (error.status === 400 && typeof body.currentBid === "number") {
+    const currentBid = body.currentBid;
+    updateLoadedAuctionDetail(auctionId, (detail) => ({
+      ...detail,
+      currentBid,
+    }));
+    updateAuctionSummaryInList(auctionId, (summary) => ({
+      ...summary,
+      currentBid,
+    }));
+    logger.warn("Bid rejected: outbid during delay", { auctionId });
+    return;
+  }
+
+  if (error.status === 409) {
+    clearDisplayTiming(auctionId);
+    updateAuctionSummaryInList(auctionId, (summary) =>
+      applyEndedFromHttpConflict(
+        summary,
+        body.winner ?? null,
+        body.finalPrice ?? summary.currentBid,
+      ),
+    );
+    updateLoadedAuctionDetail(auctionId, (detail) => ({
+      ...detail,
+      status: AuctionStatus.Ended,
+      currentBidder: body.winner ?? null,
+      currentBid: body.finalPrice ?? detail.currentBid,
+    }));
+    logger.warn("Bid rejected: auction ended", { auctionId });
+  }
 }
 
 export function getBidErrorMessage(error: unknown): string {
   if (error instanceof HttpError) {
     const body = error.body as { error?: string; currentBid?: number };
     if (error.status === 409) {
-      return body.error ?? 'Auction has ended.';
+      return body.error ?? "Auction has ended.";
     }
     if (error.status === 400 && body.error) {
-      if (typeof body.currentBid === 'number') {
+      if (typeof body.currentBid === "number") {
         return `${body.error} Try again above $${body.currentBid}.`;
       }
       return body.error;
@@ -93,5 +139,5 @@ export function getBidErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Could not place bid.';
+  return "Could not place bid.";
 }

@@ -1,5 +1,5 @@
 import styled, { keyframes } from 'styled-components';
-import type { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
+import { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -50,8 +50,14 @@ export const StatusStrip = styled.div<{ $status: AuctionVisualStatus }>`
   height: 4px;
   border-radius: 4px 4px 0 0;
   background: ${({ $status }) =>
-    $status === 'active' ? '#22c55e' : $status === 'urgent' ? '#ef4444' : '#94a3b8'};
-  animation: ${({ $status }) => ($status === 'urgent' ? pulse : 'none')} 1s ease-in-out infinite;
+    $status === AuctionVisualStatus.Active
+      ? '#22c55e'
+      : $status === AuctionVisualStatus.Urgent
+        ? '#ef4444'
+        : '#94a3b8'};
+  animation: ${({ $status }) =>
+    $status === AuctionVisualStatus.Urgent ? pulse : 'none'}
+    1s ease-in-out infinite;
 `;
 
 export const CardMeta = styled.div`

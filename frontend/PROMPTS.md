@@ -41,6 +41,12 @@ This file documents AI assistance used for this assignment, per grading requirem
 - **Lessons:** Do not trust `previousBid` on user SSE events; server snipe extension does not exist — UI must not imply server timer changed; Vite template assets/`icons.svg` are unused noise after scaffold.
 - **Would iterate:** Add integration test with fake EventSource; tighten TypeScript response parsers for API bodies.
 
----
+## Session: Magic strings, single returns, Zod (2026-07-17)
 
-_Add new entries for each significant AI prompt during development._
+**Prompt (summary):** Avoid magic strings; single return types for functions; Zod for parsing/sanitization while still stripping unsafe text.
+
+**Expected:** Const/enum status values; no `| null` Result-style domain APIs where avoidable; Zod-backed bidder/bid validation.
+
+**Received / applied:** Const maps for statuses/SSE events; Zod schemas for bid amount + bidder name; merge/SSE helpers return one type; tests updated (13 passing).
+
+---

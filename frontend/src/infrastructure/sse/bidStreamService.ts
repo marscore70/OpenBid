@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from '../../config/env';
 import { logger } from '../../shared/logging/logger';
-import type { SseConnectionStatus } from '../../shared/types/SseConnectionStatus';
+import { SseConnectionStatus } from '../../shared/types/SseConnectionStatus';
+import { SseEventType } from '../../shared/types/SseEventType';
 import { parseSseData, type ParsedStreamEvent } from './parseSseMessage';
 
 export type StreamListener = (event: ParsedStreamEvent) => void;
@@ -40,7 +41,7 @@ export class BidStreamService {
     }
     this.source?.close();
     this.source = null;
-    this.setStatus('disconnected');
+    this.setStatus(SseConnectionStatus.Disconnected);
   }
 
   private setStatus(status: SseConnectionStatus): void {
@@ -57,7 +58,11 @@ export class BidStreamService {
     }
     this.source?.close();
     const url = `${getApiBaseUrl()}/api/stream`;
-    this.setStatus(this.reconnectAttempt > 0 ? 'reconnecting' : 'connected');
+    this.setStatus(
+      this.reconnectAttempt > 0
+        ? SseConnectionStatus.Reconnecting
+        : SseConnectionStatus.Connected,
+    );
     logger.info('SSE connecting', { url, attempt: this.reconnectAttempt });
 
     const source = new EventSource(url);
@@ -65,7 +70,7 @@ export class BidStreamService {
 
     source.addEventListener('open', () => {
       this.reconnectAttempt = 0;
-      this.setStatus('connected');
+      this.setStatus(SseConnectionStatus.Connected);
       logger.info('SSE connected');
     });
 
@@ -73,15 +78,15 @@ export class BidStreamService {
       const message = event as MessageEvent<string>;
       const eventName = event.type === 'message' ? undefined : event.type;
       const parsed = parseSseData(eventName, message.data);
-      if (parsed) {
+      if (parsed.type !== SseEventType.Ignored) {
         this.emit(parsed);
       }
     };
 
-    source.addEventListener('connected', handleNamed);
-    source.addEventListener('new_bid', handleNamed);
-    source.addEventListener('auction_ended', handleNamed);
-    source.addEventListener('heartbeat', () => {
+    source.addEventListener(SseEventType.Connected, handleNamed);
+    source.addEventListener(SseEventType.NewBid, handleNamed);
+    source.addEventListener(SseEventType.AuctionEnded, handleNamed);
+    source.addEventListener(SseEventType.Heartbeat, () => {
       /* QUIRK 5: ignored */
     });
 
@@ -90,7 +95,7 @@ export class BidStreamService {
       source.close();
       this.source = null;
       if (this.intentionalClose) {
-        this.setStatus('disconnected');
+        this.setStatus(SseConnectionStatus.Disconnected);
         return;
       }
       this.scheduleReconnect();
@@ -98,7 +103,7 @@ export class BidStreamService {
   }
 
   private scheduleReconnect(): void {
-    this.setStatus('reconnecting');
+    this.setStatus(SseConnectionStatus.Reconnecting);
     const delay = Math.min(
       MAX_RECONNECT_MS,
       MIN_RECONNECT_MS * 2 ** this.reconnectAttempt,

@@ -1,11 +1,30 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchAuctions } from '../../infrastructure/api/auctionsApi';
-import { queryKeys } from '../../shared/queryKeys';
+import { useAtomValue } from "jotai";
+import { useEffect } from "react";
+import {
+  auctionsListAtom,
+  fetchAuctionsList,
+} from "../../state/auctionsListAtom";
+import { LoadStatus } from "../../state/LoadStatus";
 
 export function useAuctionList() {
-  return useQuery({
-    queryKey: queryKeys.auctions,
-    queryFn: fetchAuctions,
-    staleTime: 5_000,
-  });
+  const state = useAtomValue(auctionsListAtom);
+
+  useEffect(() => {
+    if (state.status === LoadStatus.Idle) {
+      void fetchAuctionsList();
+    }
+  }, [state.status]);
+
+  return {
+    data: state.data,
+    isLoading:
+      state.status === LoadStatus.Idle ||
+      (state.status === LoadStatus.Loading && state.data.length === 0),
+    isError: state.status === LoadStatus.Error,
+    error:
+      state.status === LoadStatus.Error
+        ? new Error(state.errorMessage)
+        : null,
+    refetch: () => fetchAuctionsList(),
+  };
 }

@@ -1,1 +1,8 @@
-export type SseConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
+export const SseConnectionStatus = {
+  Connected: 'connected',
+  Disconnected: 'disconnected',
+  Reconnecting: 'reconnecting',
+} as const;
+
+export type SseConnectionStatus =
+  (typeof SseConnectionStatus)[keyof typeof SseConnectionStatus];

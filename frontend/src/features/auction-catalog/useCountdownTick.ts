@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { computeTimeRemaining } from '../../domain/auction/computeTimeRemaining';
 import { resolveDisplayEndsAt } from '../../domain/snipe/SnipeExtensionPolicy';
+import { AuctionStatus } from '../../shared/types/AuctionStatus';
 
 export function useCountdownTick(serverEndsAt: number, displayEndsAt?: number): number {
   const effectiveEndsAt = resolveDisplayEndsAt(serverEndsAt, displayEndsAt);
@@ -22,10 +23,10 @@ export function useFormattedCountdown(serverEndsAt: number, displayEndsAt?: numb
 export function useCountdownExpired(
   serverEndsAt: number,
   displayEndsAt?: number,
-  status?: string,
+  status?: AuctionStatus,
 ): boolean {
   const effectiveEndsAt = useCountdownTick(serverEndsAt, displayEndsAt);
-  if (status === 'ended') {
+  if (status === AuctionStatus.Ended) {
     return true;
   }
   return computeTimeRemaining(effectiveEndsAt, Date.now()).expired;

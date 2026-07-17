@@ -1,11 +1,12 @@
 import { Card } from 'primereact/card';
 import { Tag } from 'primereact/tag';
 import styled from 'styled-components';
+import { Link } from 'react-router-dom';
 import { featureFlags } from '../../config/features';
 import { useAuctionList } from '../auction-catalog/useAuctionList';
 import { deriveMyBidStatus, type MyBidEntry } from './deriveMyBidStatus';
 import { getMyLastBid, loadBidderName } from '../../shared/storage/bidderStorage';
-import { Link } from 'react-router-dom';
+import { MyBidStatus } from '../../shared/types/MyBidStatus';
 
 const List = styled.ul`
   list-style: none;
@@ -18,13 +19,13 @@ const List = styled.ul`
 
 const severityForStatus = (status: MyBidEntry['status']) => {
   switch (status) {
-    case 'winning':
+    case MyBidStatus.Winning:
       return 'success';
-    case 'outbid':
+    case MyBidStatus.Outbid:
       return 'warning';
-    case 'won':
+    case MyBidStatus.Won:
       return 'info';
-    case 'lost':
+    case MyBidStatus.Lost:
       return 'danger';
     default:
       return 'secondary';
@@ -43,15 +44,14 @@ export function MyBidsSidebar() {
 
   for (const auction of data ?? []) {
     const myLastBid = getMyLastBid(auction.id);
-    const status = deriveMyBidStatus(auction, username, myLastBid);
-    if (!status) {
+    if (myLastBid === undefined) {
       continue;
     }
     entries.push({
       auctionId: auction.id,
       title: auction.title,
       image: auction.image,
-      status,
+      status: deriveMyBidStatus(auction, username, myLastBid),
       currentBid: auction.currentBid,
       myLastBid,
     });
@@ -73,11 +73,9 @@ export function MyBidsSidebar() {
             </Link>
             <div>
               <Tag severity={severityForStatus(entry.status)} value={entry.status} />
-              {entry.myLastBid !== undefined && (
-                <span style={{ marginLeft: '0.35rem', fontSize: '0.75rem' }}>
-                  You: ${entry.myLastBid} · High: ${entry.currentBid}
-                </span>
-              )}
+              <span style={{ marginLeft: '0.35rem', fontSize: '0.75rem' }}>
+                You: ${entry.myLastBid} · High: ${entry.currentBid}
+              </span>
             </div>
           </li>
         ))}
