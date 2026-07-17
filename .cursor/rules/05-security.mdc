@@ -1,0 +1,45 @@
+---
+description: Application security review rules
+alwaysApply: false
+---
+
+# Security Rules
+
+Treat all external input as untrusted.
+
+Check:
+
+Input:
+
+- validation
+- sanitization
+- parsing
+
+Authentication:
+
+- identity verification
+
+Authorization:
+
+- permission checks
+
+Frontend:
+
+- XSS risks
+- unsafe HTML
+- sensitive data exposure
+
+Backend:
+
+- ignore the backend completely
+
+Dependencies:
+
+- unnecessary packages
+- outdated vulnerable packages
+
+Never:
+
+- expose secrets
+- trust client-side validation
+- log sensitive information

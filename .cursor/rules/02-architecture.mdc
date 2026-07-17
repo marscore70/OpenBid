@@ -1,0 +1,38 @@
+---
+description: Architecture and design decisions
+alwaysApply: false
+---
+
+# Architecture Rules
+
+Before implementing complex features:
+
+Explain:
+
+1. Proposed design
+2. Alternative designs
+3. Tradeoffs
+4. Risks
+
+Prefer:
+
+- separation of concerns
+- feature-based organization
+- dependency inversion
+- clear boundaries
+- reusable abstractions
+
+Avoid:
+
+- giant components
+- god classes
+- tightly coupled modules
+- duplicated business logic
+
+Every architectural decision should have a reason.
+
+Optimize for:
+
+- maintainability
+- testability
+- future changes

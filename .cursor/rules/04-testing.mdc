@@ -1,0 +1,39 @@
+---
+description: Testing standards
+alwaysApply: true
+---
+
+# Testing Rules
+
+Every feature should consider:
+
+Happy path:
+
+- normal usage
+
+Edge cases:
+
+- empty data
+- invalid input
+- failures
+- timeouts
+- retries
+- duplicate operations
+- stale state
+- concurrency issues
+- out of format
+- Server-Sent Event
+
+Tests should verify behavior.
+
+Prefer:
+
+- meaningful test names
+- isolated tests
+- deterministic tests
+
+Before finishing:
+
+Ask:
+
+"What would break this in production?"

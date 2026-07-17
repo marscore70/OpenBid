@@ -1,0 +1,65 @@
+---
+description: Clean code and SOLID standards
+alwaysApply: true
+---
+
+# Clean Code Rules
+
+Follow:
+
+- SOLID principles
+- DRY
+- KISS
+- YAGNI
+
+Functions:
+
+- Keep functions small.
+- One responsibility per function.
+- Avoid deeply nested conditions.
+- Prefer guard clauses.
+- Use meaningful names.
+
+Types:
+
+- Avoid any.
+- Prefer explicit types.
+- Model invalid states as impossible.
+- Types should have there own files
+
+Errors:
+
+- Handle errors explicitly.
+- Never swallow exceptions.
+- Provide useful error messages.
+
+Comments:
+
+Do not comment obvious code.
+
+Comments should explain:
+
+- why something exists
+- non-obvious tradeoffs
+- business decisions
+
+Design patterns:
+
+If you use a design pattern:
+The function or class name must contain the pattern name
+You MUST add a comment directly above it:
+
+Example:
+
+// Strategy Pattern
+// Used because multiple algorithms can be swapped without changing the caller.
+
+Explain:
+
+- pattern name
+- why it is used
+- what problem it solves
+
+Do not use patterns unnecessarily.
+
+Never touch the backend code

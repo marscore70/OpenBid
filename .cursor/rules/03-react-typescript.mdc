@@ -1,0 +1,63 @@
+---
+description: React TypeScript frontend standards
+globs: frontend/**/*.{ts,tsx}
+---
+
+# React TypeScript Rules
+
+Use:
+
+- TypeScript strict mode
+- functional components
+- hooks
+- composition
+
+Avoid:
+
+- class components
+- unnecessary state
+- unnecessary effects
+- prop drilling when avoidable
+
+Components:
+
+- Keep components focused.
+- Extract reusable logic into hooks.
+- Keep business logic outside UI components.
+- Preffer PrimeReact over custom implementation when possible
+- Avoid raw css use in line style if it is up to 2 properties otherwise use styled-components
+- when needed to show a lot of data prioritize virtualization and pagination
+
+State:
+
+Consider:
+
+- loading state
+- error state
+- empty state
+- stale data
+- race conditions
+- incorrect or out of schema data
+
+Async:
+
+Always consider:
+
+- cancellation
+- retries
+- duplicate requests
+- cleanup
+
+Performance:
+
+Avoid premature optimization.
+
+Use memoization only when it provides value.
+
+Accessibility:
+
+Always consider:
+
+- keyboard navigation
+- semantic HTML
+- ARIA when needed
