@@ -31,6 +31,17 @@ describe("ConnectionStatusBadge", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it("omits the Retry action while Connecting even when onRetry is provided", () => {
+    render(
+      <ConnectionStatusBadge
+        status={SseConnectionStatus.Connecting}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Connecting")).toBeTruthy();
+    expect(screen.queryByText("Retry")).toBeNull();
+  });
+
   it("omits the Retry action when no onRetry handler is provided", () => {
     render(<ConnectionStatusBadge status={SseConnectionStatus.Disconnected} />);
     expect(screen.queryByText("Retry")).toBeNull();

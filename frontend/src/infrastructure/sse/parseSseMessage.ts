@@ -1,10 +1,9 @@
-import type { AuctionEndedEvent } from '../../shared/types/AuctionEndedEvent';
-import type { NewBidEvent } from '../../shared/types/NewBidEvent';
-import { SseEventType } from '../../shared/types/SseEventType';
-import { newBidEventSchema } from './sseEventSchemas';
+import type { AuctionEndedEvent } from "../../shared/types/AuctionEndedEvent";
+import type { NewBidEvent } from "../../shared/types/NewBidEvent";
+import { SseEventType } from "../../shared/types/SseEventType";
+import { auctionEndedEventSchema, newBidEventSchema } from "./sseEventSchemas";
 
 export type ParsedStreamEvent =
-  | { type: typeof SseEventType.Connected; timestamp: number }
   | { type: typeof SseEventType.NewBid; payload: NewBidEvent }
   | { type: typeof SseEventType.AuctionEnded; payload: AuctionEndedEvent }
   | { type: typeof SseEventType.Ignored };
@@ -13,7 +12,12 @@ export function parseSseData(
   eventName: string | undefined,
   dataLine: string,
 ): ParsedStreamEvent {
-  if (eventName === SseEventType.Heartbeat) {
+  // Heartbeat + named `connected` are unused by atom apply; connection state
+  // comes from EventSource `open` only (#31 / #35).
+  if (
+    eventName === SseEventType.Heartbeat ||
+    eventName === SseEventType.Connected
+  ) {
     return { type: SseEventType.Ignored };
   }
 
@@ -22,17 +26,6 @@ export function parseSseData(
     parsed = JSON.parse(dataLine) as unknown;
   } catch {
     return { type: SseEventType.Ignored };
-  }
-
-  if (eventName === SseEventType.Connected) {
-    const timestamp =
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'timestamp' in parsed &&
-      typeof (parsed as { timestamp: unknown }).timestamp === 'number'
-        ? (parsed as { timestamp: number }).timestamp
-        : Date.now();
-    return { type: SseEventType.Connected, timestamp };
   }
 
   if (eventName === SseEventType.NewBid) {
@@ -44,10 +37,11 @@ export function parseSseData(
   }
 
   if (eventName === SseEventType.AuctionEnded) {
-    return {
-      type: SseEventType.AuctionEnded,
-      payload: parsed as AuctionEndedEvent,
-    };
+    const result = auctionEndedEventSchema.safeParse(parsed);
+    if (!result.success) {
+      return { type: SseEventType.Ignored };
+    }
+    return { type: SseEventType.AuctionEnded, payload: result.data };
   }
 
   return { type: SseEventType.Ignored };

@@ -4,7 +4,7 @@ import { auctionStore } from "../../state/auctionStore";
 import { displayTimingRegistry } from "./bidStreamRegistries";
 
 export const connectionStatusAtom = atom<SseConnectionStatus>(
-  SseConnectionStatus.Disconnected,
+  SseConnectionStatus.Connecting,
 );
 
 /** Bumped when display timing changes so countdown consumers re-read the registry. */

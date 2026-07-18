@@ -22,7 +22,7 @@ import {
   saveBidderName,
 } from "../../shared/storage/bidderStorage";
 import { getBidErrorMessage, usePlaceBid } from "./usePlaceBid";
-import { useBidStream } from "../../app/BidStreamProvider";
+import { enableNotificationSound } from "../../app/BidStreamProvider";
 
 const Form = styled.form`
   display: flex;
@@ -76,7 +76,6 @@ export function BidForm({
   const [amountText, setAmountText] = useState(String(minBid));
   const [localError, setLocalError] = useState("");
   const mutation = usePlaceBid(auctionId);
-  const { enableNotificationSound } = useBidStream();
 
   const amountReady = isBidAmountValid(amountText, currentBid, startPrice);
   const amountHint = getBidAmountErrorMessage(

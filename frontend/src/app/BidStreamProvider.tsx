@@ -1,2 +1,10 @@
 export { BidStreamProvider } from "./bid-stream/BidStreamProvider";
-export { useBidStream } from "./bid-stream/useBidStream";
+export {
+  useBidStream,
+  useBidStreamConnectionStatus,
+  useBidStreamTimingVersion,
+  getDisplayTiming,
+  clearDisplayTiming,
+  enableNotificationSound,
+  retryBidStreamConnection,
+} from "./bid-stream/useBidStream";

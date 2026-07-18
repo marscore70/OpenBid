@@ -251,3 +251,27 @@
 **AI:** Ran [Frontend code review](92f2da03-316b-4fa0-899e-1718b3007df5) + [Frontend security review](87b28c41-af28-48e5-ab14-31731691aea1) + race/requirements explore. Rewrote `docs/problems.md`: open Critical #1 (`auction_ended` unvalidated + sticky Ended); High #4 (400 non-monotonic), #6, #7, #21, **NEW #42** (`new_bid` after Ended); Medium includes **NEW #43–#45** (cold-start Offline flash, dedupe-before-apply, ungated logger) plus prior open items; Low #24–#50; Fixed section consolidated (moved solved #2/#3/#5/#8/#15/#17/#22/#29/#39/#40/#41 etc.). Requirements: all MUST + bonuses Pass with noted gaps. `npm audit` 0 vulns; no XSS sinks. Suggested cutover order: #1 → #42 → #4/#21 → #43 → #16/#18.
 
 ---
+
+## 2026-07-18 — Implement cutover Critical/High fixes
+
+**User:** Implement problems.md cutover list (#1, #42, #4/#21, #43, #16/#18) then rest of High via implement.md; prefer npm packs/Zod; no unrequested features; tests check logic/boundaries not fragile strings.
+
+**AI:** Fixed #1 (`auctionEndedEventSchema` + sticky-Ended merge), #42/`#8` (`new_bid` no-op when Ended), #4+#21 (`Math.max` 400 patch, Zod place-bid success/error, `InvalidBidResponseError` → GET reconcile, Axios `HttpStatusCode`), #7 sanitize via Zod transforms on REST/SSE strings, #43 `Connecting` status + badge, #16/#18 prod URL gate + `npm ci`/`.dockerignore`/`nginx.conf` CSP headers. Left #5 auth open (backend). `tsc -b` clean; 170/170 tests. Updated `docs/problems.md`.
+
+---
+
+## 2026-07-18 — Finalize cutover docs + verify
+
+**User:** (continued) Finish remaining High after cutover list; prioritize npm packs; no unasked features; non-fragile tests.
+
+**AI:** Confirmed cutover complete. Open Critical: none. Open High: #5 auth only (accepted). Finished `docs/problems.md` requirements/testing/suggested-order. Re-verified `tsc -b` + 170/170 tests.
+
+---
+
+## 2026-07-18 — Architecture + ponytail fix remaining Medium/Low
+
+**User:** Call architecture.md to plan remaining problems.md fixes, then ponitail.md to implement; prefer npm packs; no unasked features; non-fragile logic/boundary tests; offload risk to trusted packs.
+
+**AI:** Planned clusters (#9+#19 LRU/`lru-cache` + consume-when-cached; #10+#18 untrack/`atomFamily.remove` + catalog warm; #11+#30 previous-leader gate; #12+#32 jotai version + Zod; #13+#14+#34 timer/visual/ceil; #15+#16+#28 optimistic detail/retry/ref lock; #17+#20 split hooks + prod logger silence; lows #24–26/#29/#31/#35). Skipped #5 auth and #27L. Implemented; `tsc -b` clean; 176/176 tests. Updated `docs/problems.md`.
+
+---

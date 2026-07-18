@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { Button } from "primereact/button";
@@ -9,7 +10,10 @@ import { featureFlags } from "../../config/features";
 import { useAuctionList } from "../auction-catalog/useAuctionList";
 import { collectMyBidEntries } from "./collectMyBidEntries";
 import type { MyBidEntry } from "./MyBidEntry";
-import { loadBidderName } from "../../shared/storage/bidderStorage";
+import {
+  bidderStorageVersionAtom,
+  loadBidderName,
+} from "../../shared/storage/bidderStorage";
 import { MyBidStatus } from "../../shared/types/MyBidStatus";
 import { InvisibleScroll } from "../../shared/ui/InvisibleScroll";
 
@@ -138,6 +142,8 @@ function MyBidListItems({ entries, onNavigate }: MyBidListItemsProps) {
 
 export function MyBidsSidebar() {
   const { data, status } = useAuctionList();
+  const storageVersion = useAtomValue(bidderStorageVersionAtom);
+  void storageVersion;
   const username = loadBidderName();
   const [dialogOpen, setDialogOpen] = useState(false);
 

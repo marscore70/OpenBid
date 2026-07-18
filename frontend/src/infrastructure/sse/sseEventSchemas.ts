@@ -1,5 +1,11 @@
 import { z } from "zod";
 import type { NewBidEvent } from "../../shared/types/NewBidEvent";
+import type { AuctionEndedEvent } from "../../shared/types/AuctionEndedEvent";
+import {
+  networkBidderSchema,
+  networkTextSchema,
+  nullableNetworkBidderSchema,
+} from "../../domain/bid/sanitizeBidderName";
 
 /**
  * Zod boundary for the `new_bid` SSE event. Unlike REST responses (see
@@ -13,10 +19,19 @@ import type { NewBidEvent } from "../../shared/types/NewBidEvent";
  */
 export const newBidEventSchema: z.ZodType<NewBidEvent> = z.object({
   auctionId: z.string().min(1),
-  bidder: z.string(),
+  bidder: networkBidderSchema,
   amount: z.number().finite(),
   previousBid: z.number().finite(),
   timestamp: z.number().finite(),
   bid_id: z.string().min(1),
   endsAt: z.number().finite(),
+});
+
+/** Zod boundary for `auction_ended` — rejects malformed payloads before merge. */
+export const auctionEndedEventSchema: z.ZodType<AuctionEndedEvent> = z.object({
+  auctionId: z.string().min(1),
+  title: networkTextSchema,
+  winner: nullableNetworkBidderSchema,
+  finalPrice: z.number().finite(),
+  timestamp: z.number().finite(),
 });

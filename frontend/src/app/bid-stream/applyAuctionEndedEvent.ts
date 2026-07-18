@@ -9,6 +9,9 @@ import { displayTimingRegistry } from "./bidStreamRegistries";
 
 /** Patches matching list/detail atoms when an auction ends. */
 export function applyAuctionEndedEvent(payload: AuctionEndedEvent): void {
+  // Always clear timing even if the auction is not in list/detail caches (#29).
+  displayTimingRegistry.clear(payload.auctionId);
+
   updateAuctionSummaryInList(payload.auctionId, (auction) =>
     mergeAuctionEndedIntoSummary(auction, payload, displayTimingRegistry),
   );

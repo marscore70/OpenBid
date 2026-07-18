@@ -29,12 +29,41 @@ export const auctionDetailAtomFamily = atomFamily((_auctionId: string) =>
 
 const trackedAuctionDetailIdsAtom = atom<readonly string[]>([]);
 
+const MAX_TRACKED_DETAIL_IDS = 20;
+
 export function trackAuctionDetailId(auctionId: string): void {
+  if (!auctionId) {
+    return;
+  }
   const current = auctionStore.get(trackedAuctionDetailIdsAtom);
   if (current.includes(auctionId)) {
     return;
   }
-  auctionStore.set(trackedAuctionDetailIdsAtom, [...current, auctionId]);
+  const next = [...current, auctionId];
+  // Cap reconnect herd: drop oldest tracked ids (and their family atoms).
+  while (next.length > MAX_TRACKED_DETAIL_IDS) {
+    const evicted = next.shift();
+    if (evicted) {
+      auctionDetailAtomFamily.remove(evicted);
+    }
+  }
+  auctionStore.set(trackedAuctionDetailIdsAtom, next);
+}
+
+/** Stops reconnect refetch for a detail page that unmounted. */
+export function untrackAuctionDetailId(auctionId: string): void {
+  if (!auctionId) {
+    return;
+  }
+  const current = auctionStore.get(trackedAuctionDetailIdsAtom);
+  if (!current.includes(auctionId)) {
+    return;
+  }
+  auctionStore.set(
+    trackedAuctionDetailIdsAtom,
+    current.filter((id) => id !== auctionId),
+  );
+  auctionDetailAtomFamily.remove(auctionId);
 }
 
 export function listTrackedAuctionDetailIds(): readonly string[] {

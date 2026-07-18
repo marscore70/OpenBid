@@ -1,7 +1,8 @@
 export const SseConnectionStatus = {
-  Connected: 'connected',
-  Disconnected: 'disconnected',
-  Reconnecting: 'reconnecting',
+  Connecting: "connecting",
+  Connected: "connected",
+  Disconnected: "disconnected",
+  Reconnecting: "reconnecting",
 } as const;
 
 export type SseConnectionStatus =

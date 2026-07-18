@@ -4,7 +4,6 @@ import { loadMyBids } from "../../shared/storage/bidderStorage";
 import { deriveMyBidStatus } from "./deriveMyBidStatus";
 import type { MyBidEntry } from "./MyBidEntry";
 
-const FALLBACK_TITLE = "Auction";
 const FALLBACK_IMAGE = "❓";
 
 /**
@@ -37,7 +36,7 @@ export function collectMyBidEntries(
     }
     entries.push({
       auctionId: stored.auctionId,
-      title: auction?.title ?? FALLBACK_TITLE,
+      title: auction?.title ?? stored.auctionId,
       image: auction?.image ?? FALLBACK_IMAGE,
       status: deriveMyBidStatus({
         auction,

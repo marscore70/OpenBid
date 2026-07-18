@@ -32,6 +32,11 @@ export class BidStreamService {
 
   start(): void {
     this.intentionalClose = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempt = 0;
     this.connect();
   }
 
@@ -60,11 +65,11 @@ export class BidStreamService {
     }
     this.source?.close();
     const url = `${getApiBaseUrl()}/api/stream`;
-    // Cold start (attempt 0) reports nothing here; Connected is only emitted
-    // from the real `open` handler below, so it never fires twice for one
-    // connection. A retry attempt's Reconnecting status is emitted once, from
-    // `scheduleReconnect`, not repeated here - a single place per transition
-    // avoids the same status firing twice back-to-back for one reconnect.
+    // Cold start / manual retry: Connecting until the real `open` handler.
+    // Reconnecting is only emitted from `scheduleReconnect`.
+    if (this.reconnectAttempt === 0) {
+      this.setStatus(SseConnectionStatus.Connecting);
+    }
     logger.info("SSE connecting", { url, attempt: this.reconnectAttempt });
 
     const source = new EventSource(url);

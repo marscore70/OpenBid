@@ -1,8 +1,14 @@
-import { z } from 'zod';
-import { logger } from '../logging/logger';
+import { atom } from "jotai";
+import { z } from "zod";
+import { logger } from "../logging/logger";
+import {
+  networkBidderSchema,
+  MAX_BIDDER_LENGTH,
+} from "../../domain/bid/sanitizeBidderName";
+import { auctionStore } from "../../state/auctionStore";
 
-const USERNAME_KEY = 'bidblitz.bidder';
-const MY_BIDS_KEY = 'bidblitz.myBids';
+const USERNAME_KEY = "bidblitz.bidder";
+const MY_BIDS_KEY = "bidblitz.myBids";
 
 const storedMyBidSchema = z.object({
   auctionId: z.string().min(1),
@@ -12,17 +18,34 @@ const storedMyBidSchema = z.object({
 
 export type StoredMyBid = z.infer<typeof storedMyBidSchema>;
 
+/** Bumped on bidder/my-bids writes so React subscribers can re-read storage. */
+export const bidderStorageVersionAtom = atom(0);
+
+function bumpBidderStorageVersion(): void {
+  const current = auctionStore.get(bidderStorageVersionAtom);
+  auctionStore.set(bidderStorageVersionAtom, current + 1);
+}
+
 export function loadBidderName(): string {
   try {
-    return localStorage.getItem(USERNAME_KEY) ?? '';
+    const raw = localStorage.getItem(USERNAME_KEY);
+    if (raw === null) {
+      return "";
+    }
+    const parsed = networkBidderSchema.safeParse(raw);
+    if (!parsed.success) {
+      return "";
+    }
+    return parsed.data.slice(0, MAX_BIDDER_LENGTH);
   } catch {
-    return '';
+    return "";
   }
 }
 
 export function saveBidderName(name: string): void {
   try {
     localStorage.setItem(USERNAME_KEY, name);
+    bumpBidderStorageVersion();
   } catch {
     /* ignore quota errors */
   }
@@ -54,7 +77,7 @@ function parseStoredMyBids(entries: readonly unknown[]): StoredMyBid[] {
     }
   }
   if (valid.length !== entries.length) {
-    logger.warn('Dropped invalid stored bid entries', {
+    logger.warn("Dropped invalid stored bid entries", {
       total: entries.length,
       valid: valid.length,
     });
@@ -67,6 +90,7 @@ export function recordMyBid(entry: StoredMyBid): void {
   existing.push(entry);
   try {
     localStorage.setItem(MY_BIDS_KEY, JSON.stringify(existing));
+    bumpBidderStorageVersion();
   } catch {
     /* ignore */
   }
@@ -81,6 +105,7 @@ export function getMyLastBid(auctionId: string): number | undefined {
 export function clearMyBids(): void {
   try {
     localStorage.removeItem(MY_BIDS_KEY);
+    bumpBidderStorageVersion();
   } catch {
     /* ignore quota / private-mode errors */
   }

@@ -1,5 +1,6 @@
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Message } from "primereact/message";
+import { Button } from "primereact/button";
 import styled from "styled-components";
 import { useAuctionList } from "./useAuctionList";
 import { AuctionCard } from "./AuctionCard";
@@ -12,8 +13,15 @@ const CatalogLoading = styled(ScrollPane)`
   padding: 2rem;
 `;
 
+const ErrorActions = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+`;
+
 export function AuctionCatalogPage() {
-  const { data, isLoading, isError, error, backgroundErrorMessage } =
+  const { data, isLoading, isError, error, backgroundErrorMessage, refetch } =
     useAuctionList();
 
   if (isLoading) {
@@ -27,12 +35,20 @@ export function AuctionCatalogPage() {
   if (isError) {
     return (
       <ScrollPane>
-        <Message
-          severity="error"
-          text={
-            error instanceof Error ? error.message : "Failed to load auctions"
-          }
-        />
+        <ErrorActions>
+          <Message
+            severity="error"
+            text={
+              error instanceof Error ? error.message : "Failed to load auctions"
+            }
+          />
+          <Button
+            type="button"
+            label="Retry"
+            icon="pi pi-refresh"
+            onClick={() => void refetch()}
+          />
+        </ErrorActions>
       </ScrollPane>
     );
   }

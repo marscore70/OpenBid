@@ -7,7 +7,10 @@ import { BidForm } from "./BidForm";
 import { BidHistoryTable } from "./BidHistoryTable";
 import { BidHistoryChart } from "./BidHistoryChart";
 import { useFormattedCountdown } from "../auction-catalog/useCountdownTick";
-import { useBidStream } from "../../app/BidStreamProvider";
+import {
+  getDisplayTiming,
+  useBidStreamTimingVersion,
+} from "../../app/BidStreamProvider";
 import { resolveDisplayEndsAt } from "../../domain/snipe/SnipeExtensionPolicy";
 import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
 import { createDefaultDisplayTiming } from "../../domain/auction/DisplayTiming";
@@ -37,7 +40,7 @@ export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, isError, error, backgroundErrorMessage } =
     useAuctionDetail(id);
-  const { getDisplayTiming, timingVersion } = useBidStream();
+  const timingVersion = useBidStreamTimingVersion();
   void timingVersion;
 
   const serverEndsAt = data?.endsAt ?? 0;
@@ -74,7 +77,8 @@ export function AuctionDetailPage() {
     );
   }
 
-  const biddingDisabled = data.status === AuctionStatus.Ended;
+  const biddingDisabled =
+    data.status === AuctionStatus.Ended || visual === AuctionVisualStatus.Ended;
   const endedPresentation =
     data.status === AuctionStatus.Ended
       ? resolveEndedAuctionPresentation({

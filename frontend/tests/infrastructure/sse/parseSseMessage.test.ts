@@ -60,4 +60,46 @@ describe("parseSseData", () => {
     const result = parseSseData("some_unknown_event", JSON.stringify({}));
     expect(result).toEqual({ type: SseEventType.Ignored });
   });
+
+  it("parses a well-formed auction_ended event", () => {
+    const payload = {
+      auctionId: "a1",
+      title: "Test",
+      winner: "Noa",
+      finalPrice: 150,
+      timestamp: 1_700_000_000_000,
+    };
+    const result = parseSseData(
+      SseEventType.AuctionEnded,
+      JSON.stringify(payload),
+    );
+    expect(result.type).toBe(SseEventType.AuctionEnded);
+    if (result.type === SseEventType.AuctionEnded) {
+      expect(result.payload.auctionId).toBe("a1");
+      expect(result.payload.finalPrice).toBe(150);
+      expect(result.payload.winner).toBe("Noa");
+    }
+  });
+
+  it("rejects auction_ended with a non-finite finalPrice", () => {
+    const result = parseSseData(
+      SseEventType.AuctionEnded,
+      JSON.stringify({
+        auctionId: "a1",
+        title: "Test",
+        winner: null,
+        finalPrice: Number.NaN,
+        timestamp: 1,
+      }),
+    );
+    expect(result.type).toBe(SseEventType.Ignored);
+  });
+
+  it("ignores named connected events (connection state comes from EventSource open)", () => {
+    const result = parseSseData(
+      SseEventType.Connected,
+      JSON.stringify({ timestamp: Number.NaN }),
+    );
+    expect(result).toEqual({ type: SseEventType.Ignored });
+  });
 });

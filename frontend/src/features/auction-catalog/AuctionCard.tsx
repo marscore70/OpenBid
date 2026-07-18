@@ -7,7 +7,10 @@ import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
 import { resolveEndedAuctionPresentation } from "../../domain/auction/resolveEndedAuctionPresentation";
 import { useFormattedCountdown } from "./useCountdownTick";
-import { useBidStream } from "../../app/BidStreamProvider";
+import {
+  useBidStreamTimingVersion,
+  getDisplayTiming,
+} from "../../app/BidStreamProvider";
 import { resolveDisplayEndsAt } from "../../domain/snipe/SnipeExtensionPolicy";
 import { loadBidderName } from "../../shared/storage/bidderStorage";
 import { CardMeta, StatusStrip, WinnerBanner } from "../../shared/ui/layout";
@@ -18,7 +21,7 @@ type AuctionCardProps = {
 
 export function AuctionCard({ auction }: AuctionCardProps) {
   const navigate = useNavigate();
-  const { getDisplayTiming, timingVersion } = useBidStream();
+  const timingVersion = useBidStreamTimingVersion();
   void timingVersion;
   const timing = getDisplayTiming(auction.id, auction.endsAt);
   const displayEndsAt = resolveDisplayEndsAt(

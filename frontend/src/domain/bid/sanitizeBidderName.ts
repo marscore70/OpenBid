@@ -9,9 +9,30 @@ export function constrainBidderNameInput(raw: string): string {
   return raw.replace(CONTROL_CHARS, "").slice(0, MAX_BIDDER_LENGTH);
 }
 
+/** Zod transform shared by form input and network string boundaries. */
+export function sanitizeNetworkText(value: string): string {
+  return value.replace(CONTROL_CHARS, "").trim();
+}
+
+export const networkTextSchema = z.string().transform(sanitizeNetworkText);
+
+export const networkBidderSchema = networkTextSchema.pipe(
+  z.string().max(MAX_BIDDER_LENGTH),
+);
+
+export const nullableNetworkBidderSchema = z
+  .union([z.string(), z.null()])
+  .transform((value) => {
+    if (value === null) {
+      return null;
+    }
+    const cleaned = sanitizeNetworkText(value).slice(0, MAX_BIDDER_LENGTH);
+    return cleaned.length === 0 ? null : cleaned;
+  });
+
 const bidderNameSchema = z
   .string()
-  .transform((value) => value.replace(CONTROL_CHARS, "").trim())
+  .transform(sanitizeNetworkText)
   .pipe(
     z
       .string()

@@ -56,16 +56,19 @@ describe("BidStreamService connection status", () => {
     vi.unstubAllGlobals();
   });
 
-  it("emits nothing before open on cold start, then Connected exactly once from the real open event", () => {
+  it("emits Connecting on cold start before open, then Connected exactly once from the real open event", () => {
     const service = new BidStreamService();
     const statuses: SseConnectionStatus[] = [];
     service.onStatus((status) => statuses.push(status));
 
     service.start();
-    expect(statuses).toEqual([]);
+    expect(statuses).toEqual([SseConnectionStatus.Connecting]);
 
     latestSource().emitOpen();
-    expect(statuses).toEqual([SseConnectionStatus.Connected]);
+    expect(statuses).toEqual([
+      SseConnectionStatus.Connecting,
+      SseConnectionStatus.Connected,
+    ]);
   });
 
   it("reports Connected only twice across a real reconnect (fixes the cold-start false-reconcile double emission)", () => {
@@ -75,7 +78,9 @@ describe("BidStreamService connection status", () => {
 
     service.start();
     latestSource().emitOpen();
-    expect(statuses).toEqual([SseConnectionStatus.Connected]);
+    expect(
+      statuses.filter((status) => status === SseConnectionStatus.Connected),
+    ).toHaveLength(1);
 
     latestSource().emitError();
     vi.runOnlyPendingTimers();
@@ -87,6 +92,7 @@ describe("BidStreamService connection status", () => {
     expect(connectedCount).toBe(2);
     expect(statuses.at(-1)).toBe(SseConnectionStatus.Connected);
     expect(statuses).toContain(SseConnectionStatus.Reconnecting);
+    expect(statuses).toContain(SseConnectionStatus.Connecting);
   });
 
   it("gives up and reports Disconnected after exhausting reconnect attempts, without scheduling further retries", () => {

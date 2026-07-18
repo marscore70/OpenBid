@@ -4,6 +4,23 @@ import type { AuctionEndedEvent } from "../../shared/types/AuctionEndedEvent";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import type { DisplayTimingRegistry } from "./DisplayTiming";
 
+/**
+ * Applies an ended event without ever rolling `currentBid` backward.
+ * A stale/malformed `finalPrice` below the cached high bid still marks Ended
+ * but keeps the higher cached bid/bidder (sticky-Ended safety).
+ */
+function resolveEndedBidFields(
+  currentBid: number,
+  currentBidder: string | null,
+  finalPrice: number,
+  winner: string | null,
+): { currentBid: number; currentBidder: string | null } {
+  if (finalPrice < currentBid) {
+    return { currentBid, currentBidder };
+  }
+  return { currentBid: finalPrice, currentBidder: winner };
+}
+
 export function mergeAuctionEndedIntoSummary(
   auction: AuctionSummary,
   event: AuctionEndedEvent,
@@ -13,11 +30,17 @@ export function mergeAuctionEndedIntoSummary(
     return auction;
   }
   timingRegistry.clear(auction.id);
+  const ended = resolveEndedBidFields(
+    auction.currentBid,
+    auction.currentBidder,
+    event.finalPrice,
+    event.winner,
+  );
   return {
     ...auction,
     status: AuctionStatus.Ended,
-    currentBid: event.finalPrice,
-    currentBidder: event.winner,
+    currentBid: ended.currentBid,
+    currentBidder: ended.currentBidder,
   };
 }
 
@@ -30,11 +53,17 @@ export function mergeAuctionEndedIntoDetail(
     return auction;
   }
   timingRegistry.clear(auction.id);
+  const ended = resolveEndedBidFields(
+    auction.currentBid,
+    auction.currentBidder,
+    event.finalPrice,
+    event.winner,
+  );
   return {
     ...auction,
     status: AuctionStatus.Ended,
-    currentBid: event.finalPrice,
-    currentBidder: event.winner,
+    currentBid: ended.currentBid,
+    currentBidder: ended.currentBidder,
   };
 }
 
@@ -44,10 +73,16 @@ export function applyEndedFromHttpConflict(
   winner: string | null,
   finalPrice: number,
 ): AuctionSummary {
+  const ended = resolveEndedBidFields(
+    auction.currentBid,
+    auction.currentBidder,
+    finalPrice,
+    winner,
+  );
   return {
     ...auction,
     status: AuctionStatus.Ended,
-    currentBidder: winner,
-    currentBid: finalPrice,
+    currentBidder: ended.currentBidder,
+    currentBid: ended.currentBid,
   };
 }

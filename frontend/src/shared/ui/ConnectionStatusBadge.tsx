@@ -1,5 +1,5 @@
-import styled from 'styled-components';
-import { SseConnectionStatus } from '../types/SseConnectionStatus';
+import styled from "styled-components";
+import { SseConnectionStatus } from "../types/SseConnectionStatus";
 
 const StatusRow = styled.span`
   display: inline-flex;
@@ -28,34 +28,37 @@ const Badge = styled.span<{ $status: SseConnectionStatus }>`
   font-weight: 600;
   background: ${({ $status }) =>
     $status === SseConnectionStatus.Connected
-      ? '#dcfce7'
-      : $status === SseConnectionStatus.Reconnecting
-        ? '#fef9c3'
-        : '#fee2e2'};
+      ? "#dcfce7"
+      : $status === SseConnectionStatus.Connecting ||
+          $status === SseConnectionStatus.Reconnecting
+        ? "#fef9c3"
+        : "#fee2e2"};
   color: ${({ $status }) =>
     $status === SseConnectionStatus.Connected
-      ? '#166534'
-      : $status === SseConnectionStatus.Reconnecting
-        ? '#854d0e'
-        : '#991b1b'};
+      ? "#166534"
+      : $status === SseConnectionStatus.Connecting ||
+          $status === SseConnectionStatus.Reconnecting
+        ? "#854d0e"
+        : "#991b1b"};
 `;
 
 const labels: Record<SseConnectionStatus, string> = {
-  [SseConnectionStatus.Connected]: 'Connected',
-  // "Offline" (rather than the more technical "Disconnected") makes the
-  // recovery-needed state unambiguous at a glance; paired with a Retry
-  // action below once the service has given up auto-reconnecting.
-  [SseConnectionStatus.Disconnected]: 'Offline',
-  [SseConnectionStatus.Reconnecting]: 'Reconnecting',
+  [SseConnectionStatus.Connecting]: "Connecting",
+  [SseConnectionStatus.Connected]: "Connected",
+  [SseConnectionStatus.Disconnected]: "Offline",
+  [SseConnectionStatus.Reconnecting]: "Reconnecting",
 };
 
 type ConnectionStatusBadgeProps = {
   status: SseConnectionStatus;
-  /** Provided once the SSE service has permanently given up; omit to hide the Retry action. */
+  /** Shown only after permanent give-up (`Disconnected`), not during Connecting. */
   onRetry?: () => void;
 };
 
-export function ConnectionStatusBadge({ status, onRetry }: ConnectionStatusBadgeProps) {
+export function ConnectionStatusBadge({
+  status,
+  onRetry,
+}: ConnectionStatusBadgeProps) {
   return (
     <StatusRow>
       <Badge $status={status}>{labels[status]}</Badge>

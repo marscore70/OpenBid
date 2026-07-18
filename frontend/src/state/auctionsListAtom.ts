@@ -133,7 +133,7 @@ export function lookupAuctionTitle(auctionId: string): {
 export function findAuctionTitleInList(auctionId: string): string {
   const lookup = lookupAuctionTitle(auctionId);
   if (!lookup.found) {
-    return "Auction";
+    return auctionId;
   }
   return lookup.title;
 }

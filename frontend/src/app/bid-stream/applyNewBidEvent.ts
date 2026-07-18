@@ -20,22 +20,38 @@ import {
 } from "../../state/auctionDetailAtom";
 import type { ApplyNewBidPatchResult } from "./ApplyNewBidPatchResult";
 import { bumpTimingVersion } from "./bidStreamAtoms";
-import {
-  displayTimingRegistry,
-  seenBidIds,
-} from "./bidStreamRegistries";
+import { displayTimingRegistry, seenBidIds } from "./bidStreamRegistries";
 
 const noPatch: ApplyNewBidPatchResult = {
   amountApplied: false,
   snipeUpdated: false,
 };
 
+function readPreviousLeader(auctionId: string): string | null {
+  const detail = readAuctionDetail(auctionId).data;
+  if (detail) {
+    return detail.currentBidder;
+  }
+  const match = readAuctionsList().data.find(
+    (auction) => auction.id === auctionId,
+  );
+  return match?.currentBidder ?? null;
+}
+
+function auctionIsCached(auctionId: string): boolean {
+  if (readAuctionDetail(auctionId).data) {
+    return true;
+  }
+  return readAuctionsList().data.some((auction) => auction.id === auctionId);
+}
+
 function maybeNotifyOutbid(
   payload: NewBidEvent,
   amountApplied: boolean,
+  previousLeader: string | null,
 ): void {
   const username = loadBidderName();
-  const eligible = shouldNotifyOutbid(payload, username);
+  const eligible = shouldNotifyOutbid(payload, username, previousLeader);
   if (!shouldNotifyOutbidWhenApplied(amountApplied, eligible)) {
     return;
   }
@@ -46,10 +62,7 @@ function maybeNotifyOutbid(
   });
 }
 
-function displayEndsAtFor(
-  auctionId: string,
-  serverEndsAt: number,
-): number {
+function displayEndsAtFor(auctionId: string, serverEndsAt: number): number {
   return displayTimingRegistry.get(auctionId, serverEndsAt).displayEndsAt;
 }
 
@@ -104,18 +117,25 @@ function applyNewBidToDetail(payload: NewBidEvent): ApplyNewBidPatchResult {
   };
 }
 
-/** Dedupes bid_id, patches list/detail, notifies outbid only when amount applied. */
+/** Dedupes bid_id only after the auction is cached; patches list/detail; notifies on leader loss. */
 export function applyNewBidEvent(payload: NewBidEvent): void {
+  if (seenBidIds.has(payload.bid_id)) {
+    return;
+  }
+  // Do not consume when the auction is unloaded — a later load must still accept this id.
+  if (!auctionIsCached(payload.auctionId)) {
+    return;
+  }
   if (seenBidIds.consume(payload.bid_id)) {
     return;
   }
 
+  const previousLeader = readPreviousLeader(payload.auctionId);
   const listPatch = applyNewBidToList(payload);
   const detailPatch = applyNewBidToDetail(payload);
-  const amountApplied =
-    listPatch.amountApplied || detailPatch.amountApplied;
+  const amountApplied = listPatch.amountApplied || detailPatch.amountApplied;
 
-  maybeNotifyOutbid(payload, amountApplied);
+  maybeNotifyOutbid(payload, amountApplied, previousLeader);
 
   if (listPatch.snipeUpdated || detailPatch.snipeUpdated) {
     bumpTimingVersion();
