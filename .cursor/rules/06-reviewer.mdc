@@ -18,6 +18,7 @@ Look for:
 - bugs
 - race conditions
 - wrong assumptions
+- No unhandled promise rejections, no silent failures. All errors must be visible to the user or logged.
 
 ## Design
 

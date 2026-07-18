@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    container_name: openbid-backend
+    # No host publish of :3005 — SPA talks same-origin via nginx :8080.
+    # Avoids browser CSRF to an authless API with CORS * on the host.
+    expose:
+      - "3005"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3005/api/auctions').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Same-origin: browser calls /api; nginx proxies to backend:3005.
+        VITE_API_BASE_URL: ""
+    container_name: openbid-frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
