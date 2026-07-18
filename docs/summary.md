@@ -44,7 +44,7 @@ OpenBid/
   docs/
     plan.md                   Requirements, architecture, decision history
     problems.md               Remaining limitations and resolved findings
-    summery.md                This system explanation
+    summary.md                This system explanation
   docker-compose.yml          Backend + frontend production-style stack
 ```
 

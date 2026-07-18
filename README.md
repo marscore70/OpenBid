@@ -34,7 +34,7 @@ docker compose up --build
 ```
 
 - Frontend: `http://localhost:8080` (nginx, non-root, proxies `/api` → `backend:3005`)
-- Backend: `http://localhost:3005` (also exposed for direct access)
+- Backend stays on the Compose network only (not published to the host) so the authless API is not reachable cross-origin from other tabs.
 - Production SPA build uses same-origin API (`VITE_API_BASE_URL=""`); CSP `connect-src 'self'` matches the reverse proxy.
 
 ## Scripts
@@ -48,7 +48,7 @@ docker compose up --build
 ## Architecture
 
 See [`docs/plan.md`](docs/plan.md) for requirements, backend quirks (client workarounds only), and layer structure.
-See [`docs/summery.md`](docs/summery.md) for the complete system walkthrough and decision rationale.
+See [`docs/summary.md`](docs/summary.md) for the complete system walkthrough and decision rationale.
 
 **Summary:** React + Vite + TypeScript, PrimeReact UI, styled-components layout, jotai (+ `jotai-family`) for REST state, single SSE connection with reconnect + refetch, pure domain modules for merge/dedupe/validation/countdown.
 
@@ -64,9 +64,10 @@ See [`docs/summery.md`](docs/summery.md) for the complete system walkthrough and
 
 ## Submission docs
 
-I strongly recommand reading [SUMMARY.md](../docs/summary.md) it explain the entire project
-And to see my full chat summarized go to [CHAT.md](../docs/chat.md)
+- System walkthrough: [`docs/summary.md`](docs/summary.md)
+- AI prompt log (required): [`frontend/PROMPTS.md`](frontend/PROMPTS.md)
+- Session notes: [`docs/chat.md`](docs/chat.md)
 
 ## Agentic work
 
-I worked with agents you can see all the prompts and rules under .cursor with /promp or /rule acordingly
+Agent prompts and Cursor rules live under [`.cursor/prompts`](.cursor/prompts) and [`.cursor/rules`](.cursor/rules).

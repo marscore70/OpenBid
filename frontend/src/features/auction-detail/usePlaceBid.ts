@@ -10,6 +10,7 @@ import {
 import { parsePlaceBidErrorBody } from "../../infrastructure/api/bidSchemas";
 import { applyEndedFromHttpConflict } from "../../domain/auction/mergeAuctionEnded";
 import { nextCurrentBidAfterOutbidRejection } from "../../domain/auction/nextCurrentBidAfterOutbidRejection";
+import { nextCurrentBidderAfterOutbidRejection } from "../../domain/auction/nextCurrentBidderAfterOutbidRejection";
 import { recordMyBid } from "../../shared/storage/bidderStorage";
 import { logger } from "../../shared/logging/logger";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
@@ -18,7 +19,10 @@ import {
   fetchAuctionDetail,
   updateLoadedAuctionDetail,
 } from "../../state/auctionDetailAtom";
-import { updateAuctionSummaryInList } from "../../state/auctionsListAtom";
+import {
+  fetchAuctionsList,
+  updateAuctionSummaryInList,
+} from "../../state/auctionsListAtom";
 
 type PlaceBidMutationState = {
   isPending: boolean;
@@ -77,26 +81,30 @@ export function usePlaceBid(auctionId: string) {
             currentBidder: payload.bidder,
           };
         });
+        // Detail GET owns history; list GET owns catalog endsAt/bidCount when
+        // SSE is delayed or dropped after the optimistic amount patch.
         void fetchAuctionDetail(auctionId);
+        void fetchAuctionsList();
         setMutation(idleMutationState);
       })
       .catch((error: unknown) => {
         if (error instanceof InvalidBidResponseError) {
           // Server may have accepted the bid; reconcile via GET rather than
-          // trusting a malformed success body into shared state.
-          recordMyBid({
-            auctionId: payload.auctionId,
-            amount: payload.amount,
-            timestamp: Date.now(),
-          });
+          // trusting a malformed success body into shared state. Do not record
+          // My Bids until GET/SSE proves the bid — otherwise a false 200 lies.
           void fetchAuctionDetail(auctionId);
-          setMutation(idleMutationState);
+          void fetchAuctionsList();
+          setMutation({
+            isPending: false,
+            isError: true,
+            error,
+          });
           logger.warn("Bid response failed validation; reconciled via GET", {
             auctionId,
           });
           return;
         }
-        handlePlaceBidError(error, auctionId);
+        handlePlaceBidError(error, auctionId, payload.bidder);
         setMutation({ isPending: false, isError: true, error });
       })
       .finally(() => {
@@ -112,7 +120,11 @@ export function usePlaceBid(auctionId: string) {
   };
 }
 
-function handlePlaceBidError(error: unknown, auctionId: string): void {
+function handlePlaceBidError(
+  error: unknown,
+  auctionId: string,
+  rejectedBidder: string,
+): void {
   if (!isHttpError(error)) {
     logger.error("Bid failed", { error: String(error) });
     return;
@@ -125,11 +137,17 @@ function handlePlaceBidError(error: unknown, auctionId: string): void {
     typeof body.currentBid === "number"
   ) {
     const rejectedCurrentBid = body.currentBid;
+    // Raise the floor. Clear leader only when it is still the rejected
+    // bidder — never wipe a real leader SSE already applied.
     updateLoadedAuctionDetail(auctionId, (detail) => ({
       ...detail,
       currentBid: nextCurrentBidAfterOutbidRejection(
         detail.currentBid,
         rejectedCurrentBid,
+      ),
+      currentBidder: nextCurrentBidderAfterOutbidRejection(
+        detail.currentBidder,
+        rejectedBidder,
       ),
     }));
     updateAuctionSummaryInList(auctionId, (summary) => ({
@@ -138,7 +156,13 @@ function handlePlaceBidError(error: unknown, auctionId: string): void {
         summary.currentBid,
         rejectedCurrentBid,
       ),
+      currentBidder: nextCurrentBidderAfterOutbidRejection(
+        summary.currentBidder,
+        rejectedBidder,
+      ),
     }));
+    void fetchAuctionDetail(auctionId);
+    void fetchAuctionsList();
     logger.warn("Bid rejected: outbid during delay", { auctionId });
     return;
   }
@@ -172,6 +196,9 @@ function handlePlaceBidError(error: unknown, auctionId: string): void {
 }
 
 export function getBidErrorMessage(error: unknown): string {
+  if (error instanceof InvalidBidResponseError) {
+    return "Bid response looked invalid. Refreshing auction state — check your bid and try again if needed.";
+  }
   if (error instanceof HttpError) {
     const body = parsePlaceBidErrorBody(error.body);
     if (error.status === HttpStatusCode.Conflict) {

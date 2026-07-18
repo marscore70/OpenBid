@@ -1,10 +1,10 @@
 # Known problems / limitations
 
-Production-gate implement pass (2026-07-18) closed Critical #1–#3 and most High/Medium items from the evening review. Agents: prior Bugbot / Security / explore findings; fixes applied in-frontend + compose (backend source untouched).
+Pre-submission multi-agent review (2026-07-18): Review + Security + Architecture + Debug agents. Critical race bugs fixed in-frontend; Compose no longer publishes authless `:3005` to the host.
 
-**Verdict:** Application logic + Docker Compose path are **GO** for the mock assignment. Remaining accepted High: **#5 no auth**.
+**Verdict:** Application logic + Docker Compose path are **GO** for the mock assignment after Critical fixes below. Remaining accepted High: **#5 no auth**.
 
-Verification (2026-07-18): production build clean; **201/201** tests pass; `npm audit` reports 0 vulnerabilities. Feature-flag YAGNI removed; backend Dockerfile pinned `node:22.17.0-alpine`. Opening client min bid = `startPrice + 1`, matching the frozen server.
+Verification: run `cd frontend && npm test && npm run build && npm audit`.
 
 ---
 
@@ -28,15 +28,31 @@ _(none open)_
 
 ## Low
 
-19. **Testing gaps (integration)** — still thin: `applyNewBidEvent` dual list+detail, full `usePlaceBid` hook paths, `BidForm` disabled/pending UX, `useBidStream` subscription surface.
+19. **Testing gaps (integration)** — still thin: full `usePlaceBid` hook paths, `BidForm` disabled/pending UX, `useBidStream` subscription surface. Equal-amount merge + 400 bidder-clear now covered at domain/merge level.
 
 20. **Self-outbid is client-only UX** — trivial bypass via direct `POST` / DevTools; same authless model as #5. Not a new exploit path.
+
+21. **CSP `style-src 'unsafe-inline'`** — required by styled-components; script stays `'self'`. Defense-in-depth tradeoff only.
+
+22. **`docs/chat.md` session log** — may contain agent transcripts; prefer not publishing raw chat if the repo is public. Assignment requires `PROMPTS.md` (present under `frontend/PROMPTS.md`).
 
 ---
 
 ## Fixed (solved — do not reopen unless regression)
 
-Moved here from prior open lists when verified solved. Retained for history.
+### Pre-submission gate 2026-07-18 (multi-agent)
+
+- **Equal-amount SSE merge** — `mergeNewBid*` now applies when `amount === currentBid` (adopts `endsAt`, bidder, history) so HTTP-ahead success / 400 floor no longer burns `bid_id` and drops snipe/history.
+- **HTTP 400 outbid** — clears `currentBidder` only when it is still the rejected bidder (Bugbot: never wipe SSE leader); tied GET fills null leader; list+detail refetch.
+- **Place-bid success list reconcile** — also `fetchAuctionsList()` so catalog `endsAt`/bidCount recover if SSE is late/dropped.
+- **Reconnect list refetch** — `fetchAuctionsList({ force: true })` from reconcile supersedes in-flight Loading fetches.
+- **Malformed 200 place-bid** — no longer `recordMyBid` + silent success; surfaces error and reconciles via GET.
+- **Clock-skew bid form** — bidding disabled only on server `AuctionStatus.Ended`, not client visual Ended.
+- **Catalog `00:00 left`** — shows Ended tag when visual Ended even if status still Active.
+- **SSE reconnect timer stack** — `scheduleReconnect` clears an existing timer before scheduling.
+- **Compose CSRF surface** — backend `:3005` not published to host; SPA uses nginx `:8080` same-origin `/api`.
+- **`frontend/PROMPTS.md`** — restored required AI prompt log.
+- **README / summary doc links** — `summery.md` → `summary.md`.
 
 ### Production gate 2026-07-18 implement
 
@@ -112,7 +128,7 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **Outbid previous-leader heuristic** — notify only when pre-merge leader matches username (identity-normalized).
 - **My Bids storage subscription** — `bidderStorageVersionAtom` bumped on write; sidebar subscribes.
 - **Countdown interval stop** — `useCountdownTick` clears interval once expired.
-- **Visual Ended disables bid form** — `biddingDisabled` includes `AuctionVisualStatus.Ended`.
+- **Visual Ended disables bid form** — superseded: form disables on server Ended only (pre-submission 2026-07-18).
 - **Place-bid optimistic detail** — success patches `currentBid`/`currentBidder` only; GET/SSE own history/`endsAt`; HTTP `bid_id` not consumed.
 - **Catalog error Retry** — error branch wires `refetch`.
 - **`useBidStream` split subscriptions** — `useBidStreamConnectionStatus` / `useBidStreamTimingVersion`; module fns for sound/timing/clear.
@@ -145,26 +161,27 @@ Moved here from prior open lists when verified solved. Retained for history.
 
 ## Requirements coverage (final review)
 
-| Requirement                                            | Status                                     |
-| ------------------------------------------------------ | ------------------------------------------ |
-| Catalog `GET /api/auctions` + Zod                      | Pass                                       |
-| Live `mm:ss` countdown from `endsAt`                   | Pass                                       |
-| Active green / &lt;30s red / Ended gray                | Pass                                       |
-| Detail `GET /api/auctions/:id`                         | Pass                                       |
-| SSE `new_bid` / `auction_ended` / ignore heartbeat     | Pass                                       |
-| Place bid: name, amount, validation, loading, 400, 409 | Pass (400 raises bid only; leader via SSE) |
-| Dedupe duplicate `bid_id`                              | Pass                                       |
-| Out-of-order lower amount rejected                     | Pass                                       |
-| Out-of-order `new_bid` after Ended                     | Pass                                       |
-| Auto-reconnect + indicator + refresh after reconnect   | Pass                                       |
-| ≥5 unit-test categories; logic separated from UI       | Pass                                       |
-| Bonus: snipe / chart / notifications / my bids         | Pass                                       |
-| SPA + `PROMPTS.md` + `README.md` + visible errors      | Pass                                       |
-| Containerized compose deploy                           | Pass (same-origin nginx proxy on :8080)    |
+| Requirement                                            | Status                                    |
+| ------------------------------------------------------ | ----------------------------------------- |
+| Catalog `GET /api/auctions` + Zod                      | Pass                                      |
+| Live `mm:ss` countdown from `endsAt`                   | Pass                                      |
+| Active green / &lt;30s red / Ended gray                | Pass                                      |
+| Detail `GET /api/auctions/:id`                         | Pass                                      |
+| SSE `new_bid` / `auction_ended` / ignore heartbeat     | Pass                                      |
+| Place bid: name, amount, validation, loading, 400, 409 | Pass (400 clears leader + raises floor)   |
+| Dedupe duplicate `bid_id`                              | Pass                                      |
+| Out-of-order lower amount rejected                     | Pass                                      |
+| Equal-amount SSE reconciles endsAt/bidder/history      | Pass                                      |
+| Out-of-order `new_bid` after Ended                     | Pass                                      |
+| Auto-reconnect + indicator + refresh after reconnect   | Pass (`force` list refetch)               |
+| ≥5 unit-test categories; logic separated from UI       | Pass                                      |
+| Bonus: snipe / chart / notifications / my bids         | Pass                                      |
+| SPA + `PROMPTS.md` + `README.md` + visible errors      | Pass                                      |
+| Containerized compose deploy                           | Pass (same-origin nginx; API not on host) |
 
 ---
 
 ## Suggested fix order (remaining)
 
 1. **#5** — auth (backend decision; accepted for mock).
-2. Optional: integration tests for Low #19; pin backend base image (other team).
+2. Optional: integration tests for Low #19.

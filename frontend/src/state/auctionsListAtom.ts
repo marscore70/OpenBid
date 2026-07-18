@@ -55,11 +55,15 @@ function mergeFetchedAuctionsList(
   );
 }
 
-export async function fetchAuctionsList(): Promise<void> {
+export async function fetchAuctionsList(options?: {
+  force?: boolean;
+}): Promise<void> {
   const current = readAuctionsList();
   // Synchronous idle/in-flight guard: sibling StrictMode effects and dual
   // callers that both saw Idle must not start a second network request.
-  if (current.status === LoadStatus.Loading) {
+  // force=true (reconnect reconcile) supersedes an in-flight fetch so a
+  // reconnect gap is never silently skipped.
+  if (current.status === LoadStatus.Loading && !options?.force) {
     return;
   }
   const generation = listGenerationGuard.next(LIST_GENERATION_KEY);

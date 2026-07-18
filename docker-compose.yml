@@ -2,8 +2,10 @@ services:
   backend:
     build: ./backend
     container_name: openbid-backend
-    ports:
-      - "3005:3005"
+    # No host publish of :3005 — SPA talks same-origin via nginx :8080.
+    # Avoids browser CSRF to an authless API with CORS * on the host.
+    expose:
+      - "3005"
     healthcheck:
       test:
         [

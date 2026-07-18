@@ -5,6 +5,7 @@ import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import type { DisplayTimingRegistry } from "./DisplayTiming";
 import type { MergeNewBidResult } from "./MergeNewBidResult";
 import { applySnipeDisplayTimingOnBid } from "./applySnipeDisplayTimingOnBid";
+import { unionBidHistory } from "./unionBidHistory";
 
 export function mergeNewBidIntoSummary(
   auction: AuctionSummary,
@@ -18,13 +19,14 @@ export function mergeNewBidIntoSummary(
   if (auction.status === AuctionStatus.Ended) {
     return { auction, applied: false };
   }
-  if (event.amount <= auction.currentBid) {
+  // Strictly lower amounts are out-of-order and must not roll state back.
+  if (event.amount < auction.currentBid) {
     return { auction, applied: false };
   }
 
-  // The backend is authoritative for endsAt (including stacked snipe
-  // extensions). Math.max guards against a reordered/duplicate applied
-  // event ever rolling the deadline backward.
+  const amountAdvanced = event.amount > auction.currentBid;
+  // Equal amount: HTTP/400 may already have raised currentBid; still adopt
+  // authoritative endsAt, bidder, and (for detail) history from SSE.
   const nextEndsAt = Math.max(auction.endsAt, event.endsAt);
 
   applySnipeDisplayTimingOnBid({
@@ -40,7 +42,7 @@ export function mergeNewBidIntoSummary(
       ...auction,
       currentBid: event.amount,
       currentBidder: event.bidder,
-      bidCount: auction.bidCount + 1,
+      bidCount: amountAdvanced ? auction.bidCount + 1 : auction.bidCount,
       endsAt: nextEndsAt,
     },
     applied: true,
@@ -58,7 +60,7 @@ export function mergeNewBidIntoDetail(
   if (auction.status === AuctionStatus.Ended) {
     return { auction, applied: false };
   }
-  if (event.amount <= auction.currentBid) {
+  if (event.amount < auction.currentBid) {
     return { auction, applied: false };
   }
 
@@ -78,9 +80,7 @@ export function mergeNewBidIntoDetail(
     timestamp: event.timestamp,
   };
 
-  const bidHistory = [...auction.bidHistory, entry].sort(
-    (a, b) => a.timestamp - b.timestamp,
-  );
+  const bidHistory = unionBidHistory(auction.bidHistory, [entry]);
 
   return {
     auction: {

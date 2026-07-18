@@ -115,6 +115,34 @@ describe("mergeFetchedAuctionSummary", () => {
     expect(merged.bidCount).toBe(5);
   });
 
+  it("fills a null cached leader from a tied-amount fetch without overwriting a known leader", () => {
+    const cachedNullLeader: AuctionSummary = {
+      ...cachedSummary,
+      currentBid: 150,
+      currentBidder: null,
+      bidCount: 3,
+    };
+    const fetched: AuctionSummary = {
+      ...cachedSummary,
+      currentBid: 150,
+      currentBidder: "Ron",
+      bidCount: 3,
+      endsAt: cachedSummary.endsAt + 15_000,
+    };
+    const filled = mergeFetchedAuctionSummary(cachedNullLeader, fetched);
+    expect(filled.currentBidder).toBe("Ron");
+    expect(filled.endsAt).toBe(cachedSummary.endsAt + 15_000);
+
+    const knownLeader: AuctionSummary = {
+      ...cachedSummary,
+      currentBid: 150,
+      currentBidder: "Noa",
+      bidCount: 3,
+    };
+    const keep = mergeFetchedAuctionSummary(knownLeader, fetched);
+    expect(keep.currentBidder).toBe("Noa");
+  });
+
   it("never reverts an already-Ended cached status back to Active", () => {
     const endedCached: AuctionSummary = {
       ...cachedSummary,
