@@ -13,6 +13,7 @@ import {
   validateBidAmount,
 } from "../../domain/bid/validateBidAmount";
 import { syncBidAmountTextToMinimum } from "../../domain/bid/syncBidAmountTextToMinimum";
+import { isSelfOutbidAttempt } from "../../domain/bid/isSelfOutbidAttempt";
 import {
   constrainBidderNameInput,
   MAX_BIDDER_LENGTH,
@@ -62,6 +63,7 @@ const ErrorText = styled.span`
 type BidFormProps = {
   auctionId: string;
   currentBid: number;
+  currentBidder: string | null;
   startPrice: number;
   disabled: boolean;
 };
@@ -69,6 +71,7 @@ type BidFormProps = {
 export function BidForm({
   auctionId,
   currentBid,
+  currentBidder,
   startPrice,
   disabled,
 }: BidFormProps) {
@@ -88,7 +91,9 @@ export function BidForm({
     currentBid,
     startPrice,
   );
-  const canSubmit = !disabled && !mutation.isPending && amountReady;
+  const selfOutbidBlocked = isSelfOutbidAttempt(currentBidder, bidder);
+  const canSubmit =
+    !disabled && !mutation.isPending && amountReady && !selfOutbidBlocked;
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -115,7 +120,10 @@ export function BidForm({
   const serverError = mutation.isError
     ? getBidErrorMessage(mutation.error)
     : "";
-  const formError = localError || serverError || amountHint;
+  const selfOutbidHint = selfOutbidBlocked
+    ? "You already have the highest bid."
+    : "";
+  const formError = localError || serverError || amountHint || selfOutbidHint;
 
   return (
     <Form onSubmit={onSubmit}>

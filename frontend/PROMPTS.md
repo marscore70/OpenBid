@@ -29,6 +29,7 @@ This file documents AI assistance used for this assignment, per grading requirem
 **Expected:** Tests relocated with clear folders; unused template assets gone; docs updated; reviewer feedback; PR created.
 
 **Received / applied:**
+
 - Tests moved to `tests/domain/bid/` and `tests/domain/auction/`
 - Removed unused `src/assets/*`, `public/icons.svg`, orphaned oxlint config/script
 - Kept `public/favicon.svg`; retitled page to BidBlitz
@@ -56,5 +57,15 @@ This file documents AI assistance used for this assignment, per grading requirem
 **Expected:** Minimal robust fixes using existing RequestGenerationGuard / clearDisplayTiming / Zod / logger; tests assert behavior/boundaries not fragile copy; `tsc` + `npm test` + `npm audit` clean.
 
 **Received / applied:** Generation invalidate + tracked commit gate on untrack; `clearDisplayTiming` on `auction_ended`; `syncBidAmountTextToMinimum`; detail Retry; place-bid error Zod sanitize/truncate; `toSafeErrorMessage` constants only; storage warn logs; `useAuctionListReader` + Loading guard; optimistic bid without fabricated history; SSE malform warns; quote doubles; deleted tautology helper/test; docs updated.
+
+---
+
+## Session: Block self-outbidding (2026-07-18)
+
+**Prompt (summary):** Use `.cursor/prompts/implement.md` to block a user from outbidding themself.
+
+**Expected:** The current leader cannot submit another bid under the same normalized bidder identity; different bidders and auctions without a leader remain valid.
+
+**Received / applied:** Added a pure identity guard using existing bidder sanitization, wired `currentBidder` into `BidForm`, disabled submission for matching names, and added boundary tests for case/whitespace normalization, different users, no leader, and empty input.
 
 ---

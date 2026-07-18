@@ -162,6 +162,7 @@ export function AuctionDetailPage() {
               key={data.id}
               auctionId={data.id}
               currentBid={data.currentBid}
+              currentBidder={data.currentBidder}
               startPrice={data.startPrice}
               disabled={biddingDisabled}
             />

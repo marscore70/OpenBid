@@ -113,6 +113,7 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **Malformed REST response errors** — `AuctionsService` delegates validation failures to Zod; tests assert `ZodError` type instead of mutable message copy.
 - **Fragile/tautological tests** — removed boolean-helper and constructor-name tests; UI tests assert roles/state/outcomes instead of mutable labels and error text.
 - **CSP `connect-src` cannot be pinned safely** — `nginx.conf` changed to use CSP
+- **Self-outbidding guard** — `BidForm` blocks the current leader from bidding again under the same normalized bidder identity.
 
 ---
 

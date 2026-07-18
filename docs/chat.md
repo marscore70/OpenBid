@@ -305,3 +305,11 @@ use the agent @.cursor/prompts/review.md to make this review and then the agent 
 **AI:** Ran the requested strict review, implemented verified frontend findings, normalized TS/TSX quotes, removed tautological tests, converted mutable-copy assertions to behavior/type/role assertions, fixed the detail atom resurrection race and related correctness/security gaps, and delegated malformed REST validation errors to Zod. Verification: TypeScript clean, 179/179 tests pass, no lint findings, and npm audit reports 0 vulnerabilities. Remaining accepted risks are authless mock identity and deployment-dependent CSP origin pinning.
 
 ---
+
+## 2026-07-18 � Block self-outbidding
+
+**User:** @.cursor/prompts/implement.md
+block user from out bidding himself
+**AI:** Added a normalized bidder-identity guard and wired the current leader into `BidForm`, preventing submission when the bidder is already leading. Added behavior/boundary tests. TypeScript clean, 183/183 tests pass, and no lint errors.
+
+---
