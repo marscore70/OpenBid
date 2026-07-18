@@ -219,3 +219,11 @@
 **AI:** Ran [Plan minimal backend snipe](fad25ae1-7422-4f56-b687-144a509edd38) then [Implement authoritative snipe](45e945ba-210d-4aec-afe1-e3bc9aa0bf61). Verified locally: backend helper + both call sites + `endsAt` on `new_bid`; frontend trusts authoritative deadline; My Bids clear-on-reset already wired; `node --check` OK; 147/147 tests green. Restart `node server.js` required to load the backend edit.
 
 ---
+
+## 2026-07-18 — Chart flicker, empty placeholder, table scroll, brand home
+
+**User:** Use implement.md to fix: (1) BidHistoryChart flickers on backend data, (2) empty chart needs placeholder/no-data message, (3) BidHistoryTable needs visible scrollbar and less scroll flicker, (4) BidBlitz in App header should navigate to `/`.
+
+**AI:** Replaced PrimeReact Chart with a Chart.js instance that updates in place via `chart.update("none")` (PrimeReact was destroy/recreate on every data change). Empty history shows a "No bids yet" overlay over a stable empty chart. Extracted `buildBidHistoryChartModel`. Bid history table: removed invisible scrollbar CSS, dropped virtual scroller (main scroll flicker source), memoized the table against countdown re-renders. Wrapped BidBlitz in `BrandLink` to `/`. `tsc -b` clean; 149/149 tests green.
+
+---

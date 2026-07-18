@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import { Link } from "react-router-dom";
-import { invisibleScrollbarCss } from "./InvisibleScroll";
 
 export const FlexColumn = styled.div`
   display: flex;
@@ -65,8 +64,7 @@ export const DataTableFill = styled.div`
     flex-direction: column;
   }
 
-  .p-datatable-wrapper,
-  .p-virtualscroller {
-    ${invisibleScrollbarCss}
+  .p-datatable-wrapper {
+    overflow: auto;
   }
 `;

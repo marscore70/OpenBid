@@ -1,4 +1,5 @@
 import styled, { keyframes } from "styled-components";
+import { Link } from "react-router-dom";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 
 const pulse = keyframes`
@@ -23,6 +24,15 @@ export const AppHeader = styled.header`
   padding: 1rem 1.5rem;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
+`;
+
+export const BrandLink = styled(Link)`
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    color: #1e40af;
+  }
 `;
 
 export const MainLayout = styled.div`

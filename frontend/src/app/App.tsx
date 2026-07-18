@@ -12,6 +12,7 @@ import { MyBidsSidebar } from "../features/my-bids/MyBidsSidebar";
 import { ConnectionStatusBadge } from "../shared/ui/ConnectionStatusBadge";
 import {
   AppHeader,
+  BrandLink,
   ContentColumn,
   MainLayout,
   PageShell,
@@ -41,7 +42,9 @@ function AppShell() {
       <Toast ref={toastRef} />
       <AppHeader>
         <div>
-          <strong>BidBlitz</strong>
+          <BrandLink to="/" aria-label="BidBlitz home">
+            <strong>BidBlitz</strong>
+          </BrandLink>
           <span style={{ marginLeft: "0.5rem", color: "#64748b" }}>
             Live garage auctions
           </span>
