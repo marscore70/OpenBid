@@ -1,7 +1,9 @@
 import { useParams } from "react-router-dom";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Message } from "primereact/message";
+import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
+import styled from "styled-components";
 import { useAuctionDetail } from "./useAuctionDetail";
 import { BidForm } from "./BidForm";
 import { BidHistoryTable } from "./BidHistoryTable";
@@ -36,9 +38,16 @@ import {
 } from "../../domain/auction/resolveEndedAuctionPresentation";
 import { loadBidderName } from "../../shared/storage/bidderStorage";
 
+const ErrorActions = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+`;
+
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, backgroundErrorMessage } =
+  const { data, isLoading, isError, error, backgroundErrorMessage, refetch } =
     useAuctionDetail(id);
   const timingVersion = useBidStreamTimingVersion();
   void timingVersion;
@@ -69,10 +78,18 @@ export function AuctionDetailPage() {
     return (
       <DetailPage>
         <DetailBackLink to="/">← Back to catalog</DetailBackLink>
-        <Message
-          severity="error"
-          text={error instanceof Error ? error.message : "Auction not found"}
-        />
+        <ErrorActions>
+          <Message
+            severity="error"
+            text={error instanceof Error ? error.message : "Auction not found"}
+          />
+          <Button
+            type="button"
+            label="Retry"
+            icon="pi pi-refresh"
+            onClick={() => void refetch()}
+          />
+        </ErrorActions>
       </DetailPage>
     );
   }

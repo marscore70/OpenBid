@@ -2,6 +2,7 @@ import type { AuctionEndedEvent } from "../../shared/types/AuctionEndedEvent";
 import type { NewBidEvent } from "../../shared/types/NewBidEvent";
 import { SseEventType } from "../../shared/types/SseEventType";
 import { auctionEndedEventSchema, newBidEventSchema } from "./sseEventSchemas";
+import { logger } from "../../shared/logging/logger";
 
 export type ParsedStreamEvent =
   | { type: typeof SseEventType.NewBid; payload: NewBidEvent }
@@ -25,12 +26,17 @@ export function parseSseData(
   try {
     parsed = JSON.parse(dataLine) as unknown;
   } catch {
+    logger.warn("Ignoring malformed SSE JSON", { eventName });
     return { type: SseEventType.Ignored };
   }
 
   if (eventName === SseEventType.NewBid) {
     const result = newBidEventSchema.safeParse(parsed);
     if (!result.success) {
+      logger.warn("Ignoring malformed SSE new_bid", {
+        eventName,
+        issueCount: result.error.issues.length,
+      });
       return { type: SseEventType.Ignored };
     }
     return { type: SseEventType.NewBid, payload: result.data };
@@ -39,6 +45,10 @@ export function parseSseData(
   if (eventName === SseEventType.AuctionEnded) {
     const result = auctionEndedEventSchema.safeParse(parsed);
     if (!result.success) {
+      logger.warn("Ignoring malformed SSE auction_ended", {
+        eventName,
+        issueCount: result.error.issues.length,
+      });
       return { type: SseEventType.Ignored };
     }
     return { type: SseEventType.AuctionEnded, payload: result.data };

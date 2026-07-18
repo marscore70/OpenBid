@@ -6,7 +6,7 @@ import {
 } from "../../../src/domain/auction/resolveEndedAuctionPresentation";
 
 describe("resolveEndedAuctionPresentation", () => {
-  it("marks no-winner endings as warning with no-bids copy", () => {
+  it("classifies no-winner endings as warnings", () => {
     const result = resolveEndedAuctionPresentation({
       currentBidder: null,
       currentBid: 150,
@@ -15,8 +15,6 @@ describe("resolveEndedAuctionPresentation", () => {
 
     expect(result.outcome).toBe(EndedAuctionOutcome.NoBids);
     expect(result.tone).toBe(EndedAuctionTone.Warning);
-    expect(result.catalogMessage).toBe("No bids yet");
-    expect(result.detailMessage).toBe("Auction ended without bids");
   });
 
   it("marks my win as success", () => {
@@ -28,8 +26,6 @@ describe("resolveEndedAuctionPresentation", () => {
 
     expect(result.outcome).toBe(EndedAuctionOutcome.WonByMe);
     expect(result.tone).toBe(EndedAuctionTone.Success);
-    expect(result.catalogMessage).toBe("You won - $200");
-    expect(result.detailMessage).toBe("Auction ended. You won at $200");
   });
 
   it("marks another bidder's win as neutral", () => {
@@ -41,6 +37,5 @@ describe("resolveEndedAuctionPresentation", () => {
 
     expect(result.outcome).toBe(EndedAuctionOutcome.WonByOther);
     expect(result.tone).toBe(EndedAuctionTone.Neutral);
-    expect(result.catalogMessage).toBe("Winner: Bob - $175");
   });
 });

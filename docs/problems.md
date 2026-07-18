@@ -2,9 +2,9 @@
 
 Final production review of `frontend/` (2026-07-18) against `docs/BidBlitz_Assignment_Clean.md` / assignment PDF quirks. Ranked Critical → Low. Items in **Fixed** are solved — do not reopen unless a regression is found.
 
-Agents: [Frontend code review](92f2da03-316b-4fa0-899e-1718b3007df5), [Frontend security review](87b28c41-af28-48e5-ab14-31731691aea1), plus a dedicated race/requirements exploration pass.
+Agents: [Frontend code review](92f2da03-316b-4fa0-899e-1718b3007df5), [Frontend security review](87b28c41-af28-48e5-ab14-31731691aea1), plus a dedicated race/requirements exploration pass. Follow-up implement pass (2026-07-18) closed verified Medium/High races from a second review.
 
-**Verdict (updated 2026-07-18 medium/low pass):** Critical none. Remaining High is assignment-accepted **#5 no auth** only. Medium/Low items from the cutover backlog are **Fixed** (see Fixed section). Cosmetic #27L left open by choice.
+**Verdict (updated 2026-07-18 implement pass):** Critical none. Remaining High is assignment-accepted **#5 no auth** only. CSP `connect-src` stays broad as an accepted deployment-origin limitation (cannot pin without a known API origin). Cosmetic quote cleanup applied in the implement pass.
 
 ---
 
@@ -28,7 +28,7 @@ _(none open)_
 
 ## Low
 
-27L. **Quote / style inconsistency** — mixed `'` / `"` across modules (cosmetic; skipped).
+16L. **CSP `connect-src` cannot be pinned safely** — `nginx.conf` allows `connect-src 'self' http: https: ws: wss:` because the production API origin is not fixed in-repo. Narrowing without a configured origin would break deployments. Accept until deploy config supplies an explicit API origin.
 
 ---
 
@@ -51,7 +51,7 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **`applySseEventToAuctionAtoms` SRP split** — thin facade + `applyNewBidEvent` / `applyAuctionEndedEvent`.
 - **`atomFamily` → `jotai-family`** — deprecated import removed; retention addressed via untrack/`remove` (#10).
 - **Docs plan drift (#22)** — `docs/plan.md` aligned to jotai + Axios + BidStream.
-- **Outbid toast only when applied (#24/#33 historical)** — `shouldNotifyOutbidWhenApplied` after merge.
+- **Outbid toast only when applied (#24/#33 historical)** — gate is `amountApplied && eligible` at apply site.
 - **`enableSound` AudioContext reuse (#26 historical)** — create once; resume if suspended.
 - **Cold-start false reconcile (#2)** — `Connected` only from real `open`; no reconcile on first Connected.
 - **SSE vs refetch races (#3)** — `RequestGenerationGuard` + monotonic `mergeFetchedAuctionSnapshot`.
@@ -88,10 +88,10 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **My Bids storage subscription (#12)** — `bidderStorageVersionAtom` bumped on write; sidebar subscribes.
 - **Countdown interval stop (#13)** — `useCountdownTick` clears interval once expired.
 - **Visual Ended disables bid form (#14)** — `biddingDisabled` includes `AuctionVisualStatus.Ended`.
-- **Place-bid optimistic detail (#15)** — success patches detail bid/history before GET reconcile.
+- **Place-bid optimistic detail (#15)** — success patches `currentBid`/`currentBidder` only; GET/SSE own history/`endsAt`; HTTP `bid_id` not consumed.
 - **Catalog error Retry (#16)** — error branch wires `refetch`.
 - **`useBidStream` split subscriptions (#17)** — `useBidStreamConnectionStatus` / `useBidStreamTimingVersion`; module fns for sound/timing/clear.
-- **Deep-link catalog warm (#18)** — `AppShell` always calls `useAuctionList`.
+- **Deep-link catalog warm (#18)** — `AppShell` always calls `useAuctionList`; catalog/sidebar use `useAuctionListReader` (no second idle fetch).
 - **Prod logger silence (#20)** — `logger` no-ops in `import.meta.env.PROD`.
 - **Fallback title (#24)** — missing title uses `auctionId`, not `"Auction"`.
 - **`isPlaceBidHttpError` removed (#25L)** — callers use `isHttpError`.
@@ -102,6 +102,18 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **Unused `connected` SSE (#31 / #35)** — named `connected` parsed as `Ignored`; connection from EventSource `open`.
 - **`loadBidderName` Zod (#32)** — `networkBidderSchema` on read.
 - **Partial-second countdown (#34)** — `Math.ceil` so active remainder shows ≥ `00:01`.
+- **atomFamily resurrection race** — `untrack`/`evict` bumps `RequestGenerationGuard` + tracked-membership commit gate so late success cannot recreate orphan Success.
+- **`auction_ended` timing bump** — `applyAuctionEndedEvent` uses `clearDisplayTiming` (clear + `bumpTimingVersion`).
+- **BidForm stale amount** — `syncBidAmountTextToMinimum` raises field only when below new min.
+- **Detail error Retry** — PrimeReact Retry wires `useAuctionDetail.refetch`.
+- **placeBid error body sanitize** — Zod `sanitizeNetworkText` + max length on `error` field.
+- **`toSafeErrorMessage` trust boundary** — never surfaces arbitrary `Error.message`; exported safe constants only.
+- **localStorage write/remove warnings** — `logger.warn` on failure; safe fallback preserved.
+- **Double catalog idle fetch** — Loading sync guard + `useAuctionListReader` for catalog/sidebar.
+- **Malformed SSE observability** — dev `logger.warn` on JSON/schema failure without raw payloads.
+- **Quote style (#27L)** — formatter-owned single quotes normalized to double quotes in frontend TS/TSX.
+- **Malformed REST response errors** — `AuctionsService` delegates validation failures to Zod; tests assert `ZodError` type instead of mutable message copy.
+- **Fragile/tautological tests** — removed boolean-helper and constructor-name tests; UI tests assert roles/state/outcomes instead of mutable labels and error text.
 
 ---
 
@@ -131,25 +143,25 @@ Server quirks: POST delay, duplicate SSE, 409-on-end, out-of-order amounts, hear
 
 Still thin or missing:
 
-- `applySseEventToAuctionAtoms` / `applyNewBidEvent` / `applyAuctionEndedEvent` integration (dual list+detail, dedupe-once, snipe bump)
+- `applySseEventToAuctionAtoms` / `applyNewBidEvent` integration (dual list+detail, dedupe-once, snipe bump) beyond ended-timing bump
 - Full `usePlaceBid` hook integration (success / 400 / 409 paths)
 - `BidForm` disabled / pending / visual-ended UX
 - `useBidStream` subscription surface (who re-renders)
 
-Covered in the 2026-07-18 medium/low pass: LRU `seenBidIds` eviction, previous-leader outbid gate, partial-second countdown, named `connected` → Ignored.
+Covered in the 2026-07-18 implement pass: detail untrack late-response race, `auction_ended` timing bump, bid amount min sync, safe error boundary, place-bid error sanitize/truncate.
 
 ---
 
 ## Security review notes (2026-07-18)
 
-- **No Critical XSS/RCE** found: no `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `javascript:` hrefs, open redirects, or prototype-pollution sinks (immutable field spreads only).
+- **No Critical XSS/RCE** found: no `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `javascript:` hrefs, open redirects, or prototype-pollution sinks (immutable field spreads only). React text rendering is sufficient; DOMPurify not added.
 - **`npm audit`:** 0 vulnerabilities (reaffirms axios pin + `lru-cache` add).
-- **#17 / #41:** still Fixed and holding.
-- **Medium/low pass:** prod logger silence, Zod `loadBidderName`, dedupe/apply ordering, nginx/CSP already in place.
+- **#17 / #41:** still Fixed and holding; `toSafeErrorMessage` no longer passes through `Error.message`.
+- **CSP:** left broad on purpose (see Low **16L**); do not pin `connect-src` without a configured API origin.
 
 ---
 
 ## Suggested fix order (remaining)
 
 1. **#5** — auth (backend decision; accepted for mock).
-2. **#27L** — quote style (optional cosmetic).
+2. **16L** — pin CSP `connect-src` when deploy config knows the API origin.

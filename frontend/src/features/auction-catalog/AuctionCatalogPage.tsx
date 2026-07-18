@@ -2,7 +2,7 @@ import { ProgressSpinner } from "primereact/progressspinner";
 import { Message } from "primereact/message";
 import { Button } from "primereact/button";
 import styled from "styled-components";
-import { useAuctionList } from "./useAuctionList";
+import { useAuctionListReader } from "./useAuctionList";
 import { AuctionCard } from "./AuctionCard";
 import { CatalogGrid } from "../../shared/ui/layout";
 import { ScrollPane } from "../../shared/ui/layoutPrimitives";
@@ -22,7 +22,7 @@ const ErrorActions = styled.div`
 
 export function AuctionCatalogPage() {
   const { data, isLoading, isError, error, backgroundErrorMessage, refetch } =
-    useAuctionList();
+    useAuctionListReader();
 
   if (isLoading) {
     return (

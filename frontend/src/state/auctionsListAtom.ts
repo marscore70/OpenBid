@@ -56,8 +56,13 @@ function mergeFetchedAuctionsList(
 }
 
 export async function fetchAuctionsList(): Promise<void> {
-  const generation = listGenerationGuard.next(LIST_GENERATION_KEY);
   const current = readAuctionsList();
+  // Synchronous idle/in-flight guard: sibling StrictMode effects and dual
+  // callers that both saw Idle must not start a second network request.
+  if (current.status === LoadStatus.Loading) {
+    return;
+  }
+  const generation = listGenerationGuard.next(LIST_GENERATION_KEY);
   writeAuctionsList({
     ...current,
     status: LoadStatus.Loading,

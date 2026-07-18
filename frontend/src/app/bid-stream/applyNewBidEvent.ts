@@ -7,7 +7,6 @@ import {
   outbidNotifier,
   shouldNotifyOutbid,
 } from "../../features/notifications/outbidNotifier";
-import { shouldNotifyOutbidWhenApplied } from "../../features/notifications/shouldNotifyOutbidWhenApplied";
 import { loadBidderName } from "../../shared/storage/bidderStorage";
 import {
   findAuctionTitleInList,
@@ -52,7 +51,7 @@ function maybeNotifyOutbid(
 ): void {
   const username = loadBidderName();
   const eligible = shouldNotifyOutbid(payload, username, previousLeader);
-  if (!shouldNotifyOutbidWhenApplied(amountApplied, eligible)) {
+  if (!(amountApplied && eligible)) {
     return;
   }
   outbidNotifier.notifyOutbid({

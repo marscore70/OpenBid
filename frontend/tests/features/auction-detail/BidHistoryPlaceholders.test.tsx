@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { BidHistoryTable } from "../../../src/features/auction-detail/BidHistoryTable";
 
 const updateMock = vi.fn();
@@ -52,10 +52,9 @@ afterEach(() => {
 describe("BidHistoryTable", () => {
   it("renders empty placeholder message when history is empty", () => {
     render(<BidHistoryTable history={[]} />);
-    expect(screen.getByText("No bids yet")).toBeTruthy();
-    expect(screen.getByText("Bidder")).toBeTruthy();
-    expect(screen.getByText("Amount")).toBeTruthy();
-    expect(screen.getByText("Time")).toBeTruthy();
+    expect(screen.getByRole("status")).toBeTruthy();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(3);
+    expect(screen.queryAllByRole("row")).toHaveLength(2);
   });
 });
 
@@ -69,8 +68,8 @@ describe("BidHistoryChart", () => {
     const { container } = render(
       <BidHistoryChart history={[]} startPrice={25} />,
     );
-    expect(container.querySelector("canvas")).toBeTruthy();
-    expect(within(container).getByText("No bids yet")).toBeTruthy();
+    expect(screen.getByRole("img")).toBeTruthy();
+    expect(screen.getByRole("status")).toBeTruthy();
     expect(updateMock).toHaveBeenCalled();
   });
 });

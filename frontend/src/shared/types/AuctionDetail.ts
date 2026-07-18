@@ -1,5 +1,5 @@
-import type { AuctionStatus } from './AuctionStatus';
-import type { BidHistoryEntry } from './BidHistoryEntry';
+import type { AuctionStatus } from "./AuctionStatus";
+import type { BidHistoryEntry } from "./BidHistoryEntry";
 
 export type AuctionDetail = {
   id: string;

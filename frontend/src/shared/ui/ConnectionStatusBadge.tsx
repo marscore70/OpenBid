@@ -61,7 +61,9 @@ export function ConnectionStatusBadge({
 }: ConnectionStatusBadgeProps) {
   return (
     <StatusRow>
-      <Badge $status={status}>{labels[status]}</Badge>
+      <Badge role="status" data-status={status} $status={status}>
+        {labels[status]}
+      </Badge>
       {status === SseConnectionStatus.Disconnected && onRetry && (
         <RetryButton type="button" onClick={onRetry}>
           Retry

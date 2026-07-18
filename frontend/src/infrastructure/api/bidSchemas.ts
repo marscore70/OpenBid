@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { nullableNetworkBidderSchema } from "../../domain/bid/sanitizeBidderName";
+import {
+  nullableNetworkBidderSchema,
+  sanitizeNetworkText,
+} from "../../domain/bid/sanitizeBidderName";
 
 export type PlaceBidSuccess = {
   success: true;
@@ -7,6 +10,15 @@ export type PlaceBidSuccess = {
   currentBid: number;
   message: string;
 };
+
+/** Cap place-bid error body text so a hostile payload cannot flood the UI. */
+export const MAX_PLACE_BID_ERROR_LENGTH = 200;
+
+/** Sanitize + truncate; never fail the parent object (preserve currentBid etc.). */
+const placeBidErrorTextSchema = z.string().transform((value) => {
+  const cleaned = sanitizeNetworkText(value).slice(0, MAX_PLACE_BID_ERROR_LENGTH);
+  return cleaned;
+});
 
 export const placeBidSuccessSchema: z.ZodType<PlaceBidSuccess> = z.object({
   success: z.literal(true),
@@ -16,7 +28,7 @@ export const placeBidSuccessSchema: z.ZodType<PlaceBidSuccess> = z.object({
 });
 
 export const placeBidErrorBodySchema = z.object({
-  error: z.string().optional(),
+  error: placeBidErrorTextSchema.optional(),
   currentBid: z.number().finite().optional(),
   winner: nullableNetworkBidderSchema.optional(),
   finalPrice: z.number().finite().optional(),

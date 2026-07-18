@@ -205,7 +205,7 @@ export function BidHistoryChart({
     <ChartShell>
       <ChartCanvas ref={canvasRef} role="img" aria-label="Bid history chart" />
       {isEmpty && (
-        <EmptyOverlay aria-live="polite">{EMPTY_CHART_MESSAGE}</EmptyOverlay>
+        <EmptyOverlay role="status">{EMPTY_CHART_MESSAGE}</EmptyOverlay>
       )}
     </ChartShell>
   );

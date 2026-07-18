@@ -6,15 +6,8 @@ import {
 } from "../../state/auctionsListAtom";
 import { LoadStatus } from "../../state/LoadStatus";
 
-export function useAuctionList() {
+function useAuctionListState() {
   const state = useAtomValue(auctionsListAtom);
-
-  useEffect(() => {
-    if (state.status === LoadStatus.Idle) {
-      void fetchAuctionsList();
-    }
-  }, [state.status]);
-
   const hasData = state.data.length > 0;
 
   return {
@@ -35,4 +28,25 @@ export function useAuctionList() {
       state.status === LoadStatus.Success && hasData ? state.errorMessage : "",
     refetch: () => fetchAuctionsList(),
   };
+}
+
+/**
+ * Read-only catalog subscription (no idle fetch). Use on pages that share
+ * AppShell's warm load so StrictMode / sibling mounts cannot double-fetch.
+ */
+export function useAuctionListReader() {
+  return useAuctionListState();
+}
+
+/** Subscribes and starts an idle fetch — keep a single caller (AppShell warm). */
+export function useAuctionList() {
+  const list = useAuctionListState();
+
+  useEffect(() => {
+    if (list.status === LoadStatus.Idle) {
+      void fetchAuctionsList();
+    }
+  }, [list.status]);
+
+  return list;
 }

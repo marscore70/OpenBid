@@ -64,6 +64,9 @@ export function usePlaceBid(auctionId: string) {
             bidCount: summary.bidCount + 1,
           };
         });
+        // Optimistic leader only — do not fabricate history timestamps or
+        // endsAt (SSE owns those). Do not consume bid_id here: marking seen
+        // would suppress the authoritative SSE new_bid (endsAt / history).
         updateLoadedAuctionDetail(auctionId, (detail) => {
           if (result.currentBid <= detail.currentBid) {
             return detail;
@@ -72,14 +75,6 @@ export function usePlaceBid(auctionId: string) {
             ...detail,
             currentBid: result.currentBid,
             currentBidder: payload.bidder,
-            bidHistory: [
-              ...detail.bidHistory,
-              {
-                bidder: payload.bidder,
-                amount: payload.amount,
-                timestamp: Date.now(),
-              },
-            ],
           };
         });
         void fetchAuctionDetail(auctionId);
@@ -180,7 +175,7 @@ export function getBidErrorMessage(error: unknown): string {
   if (error instanceof HttpError) {
     const body = parsePlaceBidErrorBody(error.body);
     if (error.status === HttpStatusCode.Conflict) {
-      return body.error ?? "Auction has ended.";
+      return body.error || "Auction has ended.";
     }
     if (error.status === HttpStatusCode.BadRequest && body.error) {
       if (typeof body.currentBid === "number") {
@@ -188,10 +183,8 @@ export function getBidErrorMessage(error: unknown): string {
       }
       return body.error;
     }
-    return body.error ?? toSafeErrorMessage(error);
+    return body.error || toSafeErrorMessage(error);
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Could not place bid.";
+  logger.error("Bid failed with non-HTTP error", { error: String(error) });
+  return toSafeErrorMessage(error);
 }

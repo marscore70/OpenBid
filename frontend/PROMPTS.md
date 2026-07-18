@@ -49,4 +49,12 @@ This file documents AI assistance used for this assignment, per grading requirem
 
 **Received / applied:** Const maps for statuses/SSE events; Zod schemas for bid amount + bidder name; merge/SSE helpers return one type; tests updated (13 passing).
 
+## Session: Implement verified review findings (2026-07-18)
+
+**Prompt (summary):** Act as Principal Software Engineer per `.cursor/prompts/implement.md`; implement verified review findings in `frontend/` only; no backend/git; focused fixes for atom resurrection, timing bump, BidForm amount sync, detail Retry, error sanitize/safe messages, storage logger warns, double catalog fetch, optimistic bid history, SSE parse observability, quote normalization, test audit, docs.
+
+**Expected:** Minimal robust fixes using existing RequestGenerationGuard / clearDisplayTiming / Zod / logger; tests assert behavior/boundaries not fragile copy; `tsc` + `npm test` + `npm audit` clean.
+
+**Received / applied:** Generation invalidate + tracked commit gate on untrack; `clearDisplayTiming` on `auction_ended`; `syncBidAmountTextToMinimum`; detail Retry; place-bid error Zod sanitize/truncate; `toSafeErrorMessage` constants only; storage warn logs; `useAuctionListReader` + Loading guard; optimistic bid without fabricated history; SSE malform warns; quote doubles; deleted tautology helper/test; docs updated.
+
 ---

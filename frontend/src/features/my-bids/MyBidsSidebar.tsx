@@ -7,7 +7,7 @@ import { Dialog } from "primereact/dialog";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
 import { featureFlags } from "../../config/features";
-import { useAuctionList } from "../auction-catalog/useAuctionList";
+import { useAuctionListReader } from "../auction-catalog/useAuctionList";
 import { collectMyBidEntries } from "./collectMyBidEntries";
 import type { MyBidEntry } from "./MyBidEntry";
 import {
@@ -141,7 +141,7 @@ function MyBidListItems({ entries, onNavigate }: MyBidListItemsProps) {
 }
 
 export function MyBidsSidebar() {
-  const { data, status } = useAuctionList();
+  const { data, status } = useAuctionListReader();
   const storageVersion = useAtomValue(bidderStorageVersionAtom);
   void storageVersion;
   const username = loadBidderName();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { ProgressSpinner } from "primereact/progressspinner";
@@ -12,6 +12,7 @@ import {
   minimumAllowedBid,
   validateBidAmount,
 } from "../../domain/bid/validateBidAmount";
+import { syncBidAmountTextToMinimum } from "../../domain/bid/syncBidAmountTextToMinimum";
 import {
   constrainBidderNameInput,
   MAX_BIDDER_LENGTH,
@@ -76,6 +77,10 @@ export function BidForm({
   const [amountText, setAmountText] = useState(String(minBid));
   const [localError, setLocalError] = useState("");
   const mutation = usePlaceBid(auctionId);
+
+  useEffect(() => {
+    setAmountText((current) => syncBidAmountTextToMinimum(current, minBid));
+  }, [minBid]);
 
   const amountReady = isBidAmountValid(amountText, currentBid, startPrice);
   const amountHint = getBidAmountErrorMessage(

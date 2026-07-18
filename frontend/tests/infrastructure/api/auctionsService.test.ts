@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AxiosInstance } from "axios";
+import { ZodError } from "zod";
 import { AuctionsService } from "../../../src/infrastructure/api/auctionsService";
 import { AuctionStatus } from "../../../src/shared/types/AuctionStatus";
 
@@ -22,7 +23,9 @@ const validDetail = {
 };
 
 function fakeClient(data: unknown): AxiosInstance {
-  return { get: vi.fn().mockResolvedValue({ data }) } as unknown as AxiosInstance;
+  return {
+    get: vi.fn().mockResolvedValue({ data }),
+  } as unknown as AxiosInstance;
 }
 
 describe("AuctionsService.getAll", () => {
@@ -35,12 +38,12 @@ describe("AuctionsService.getAll", () => {
     const service = new AuctionsService(
       fakeClient([{ ...validSummary, endsAt: "not-a-timestamp" }]),
     );
-    await expect(service.getAll()).rejects.toThrow("Invalid auctions response");
+    await expect(service.getAll()).rejects.toBeInstanceOf(ZodError);
   });
 
   it("rejects when the response is not an array", async () => {
     const service = new AuctionsService(fakeClient(validSummary));
-    await expect(service.getAll()).rejects.toThrow("Invalid auctions response");
+    await expect(service.getAll()).rejects.toBeInstanceOf(ZodError);
   });
 });
 
@@ -54,15 +57,11 @@ describe("AuctionsService.getById", () => {
     const service = new AuctionsService(
       fakeClient({ ...validDetail, currentBid: undefined }),
     );
-    await expect(service.getById("a1")).rejects.toThrow(
-      "Invalid auction detail response",
-    );
+    await expect(service.getById("a1")).rejects.toBeInstanceOf(ZodError);
   });
 
   it("rejects a null response", async () => {
     const service = new AuctionsService(fakeClient(null));
-    await expect(service.getById("a1")).rejects.toThrow(
-      "Invalid auction detail response",
-    );
+    await expect(service.getById("a1")).rejects.toBeInstanceOf(ZodError);
   });
 });

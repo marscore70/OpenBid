@@ -20,7 +20,7 @@ function BidHistoryTableComponent({ history }: BidHistoryTableProps) {
         sortField="timestamp"
         sortOrder={-1}
         scrollHeight="flex"
-        emptyMessage={EMPTY_HISTORY_MESSAGE}
+        emptyMessage={<span role="status">{EMPTY_HISTORY_MESSAGE}</span>}
         size="small"
       >
         <Column field="bidder" header="Bidder" />

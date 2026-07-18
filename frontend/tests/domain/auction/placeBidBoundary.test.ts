@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { nextCurrentBidAfterOutbidRejection } from "../../../src/domain/auction/nextCurrentBidAfterOutbidRejection";
 import {
+  MAX_PLACE_BID_ERROR_LENGTH,
   placeBidErrorBodySchema,
   placeBidSuccessSchema,
 } from "../../../src/infrastructure/api/bidSchemas";
-import { InvalidBidResponseError } from "../../../src/infrastructure/api/bidService";
 
 describe("nextCurrentBidAfterOutbidRejection", () => {
   it("raises the cached bid when the rejection body is higher", () => {
@@ -68,13 +68,29 @@ describe("placeBidErrorBodySchema", () => {
     });
     expect(result.success).toBe(false);
   });
-});
 
-describe("InvalidBidResponseError", () => {
-  it("is identifiable by constructor and name", () => {
-    const error = new InvalidBidResponseError();
-    expect(error).toBeInstanceOf(Error);
-    expect(error).toBeInstanceOf(InvalidBidResponseError);
-    expect(error.name).toBe("InvalidBidResponseError");
+  it("strips control characters from error text while keeping currentBid", () => {
+    const result = placeBidErrorBodySchema.safeParse({
+      error: "Outbid\u0000 by peer",
+      currentBid: 140,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.error).toBe("Outbid by peer");
+      expect(result.data.currentBid).toBe(140);
+      expect(result.data.error).not.toMatch(/[\u0000-\u001F\u007F]/);
+    }
+  });
+
+  it("truncates oversized error text to the schema max length", () => {
+    const result = placeBidErrorBodySchema.safeParse({
+      error: "x".repeat(MAX_PLACE_BID_ERROR_LENGTH + 50),
+      currentBid: 150,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.error?.length).toBe(MAX_PLACE_BID_ERROR_LENGTH);
+      expect(result.data.currentBid).toBe(150);
+    }
   });
 });

@@ -46,8 +46,11 @@ export function saveBidderName(name: string): void {
   try {
     localStorage.setItem(USERNAME_KEY, name);
     bumpBidderStorageVersion();
-  } catch {
-    /* ignore quota errors */
+  } catch (error) {
+    logger.warn("localStorage write failed", {
+      key: USERNAME_KEY,
+      error: String(error),
+    });
   }
 }
 
@@ -91,8 +94,11 @@ export function recordMyBid(entry: StoredMyBid): void {
   try {
     localStorage.setItem(MY_BIDS_KEY, JSON.stringify(existing));
     bumpBidderStorageVersion();
-  } catch {
-    /* ignore */
+  } catch (error) {
+    logger.warn("localStorage write failed", {
+      key: MY_BIDS_KEY,
+      error: String(error),
+    });
   }
 }
 
@@ -106,7 +112,10 @@ export function clearMyBids(): void {
   try {
     localStorage.removeItem(MY_BIDS_KEY);
     bumpBidderStorageVersion();
-  } catch {
-    /* ignore quota / private-mode errors */
+  } catch (error) {
+    logger.warn("localStorage remove failed", {
+      key: MY_BIDS_KEY,
+      error: String(error),
+    });
   }
 }
