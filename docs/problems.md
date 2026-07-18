@@ -28,9 +28,7 @@ _(none open)_
 
 ## Low
 
-16L. **CSP `connect-src` cannot be pinned safely** — `nginx.conf` allows `connect-src 'self' http: https: ws: wss:` because the production API origin is not fixed in-repo. Narrowing without a configured origin would break deployments. Accept until deploy config supplies an explicit API origin.
-
----
+_(none open)_
 
 ## Fixed (solved — do not reopen unless regression)
 
@@ -114,6 +112,7 @@ Moved here from prior open lists when verified solved. Retained for history.
 - **Quote style (#27L)** — formatter-owned single quotes normalized to double quotes in frontend TS/TSX.
 - **Malformed REST response errors** — `AuctionsService` delegates validation failures to Zod; tests assert `ZodError` type instead of mutable message copy.
 - **Fragile/tautological tests** — removed boolean-helper and constructor-name tests; UI tests assert roles/state/outcomes instead of mutable labels and error text.
+- **CSP `connect-src` cannot be pinned safely** — `nginx.conf` changed to use CSP
 
 ---
 
@@ -164,4 +163,3 @@ Covered in the 2026-07-18 implement pass: detail untrack late-response race, `au
 ## Suggested fix order (remaining)
 
 1. **#5** — auth (backend decision; accepted for mock).
-2. **16L** — pin CSP `connect-src` when deploy config knows the API origin.
