@@ -1,15 +1,18 @@
 import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
-import { featureFlags } from "../../config/features";
-import { useAuctionList } from "../auction-catalog/useAuctionList";
+import { useAuctionListReader } from "../auction-catalog/useAuctionList";
 import { collectMyBidEntries } from "./collectMyBidEntries";
 import type { MyBidEntry } from "./MyBidEntry";
-import { loadBidderName } from "../../shared/storage/bidderStorage";
+import {
+  bidderStorageVersionAtom,
+  loadBidderName,
+} from "../../shared/storage/bidderStorage";
 import { MyBidStatus } from "../../shared/types/MyBidStatus";
 import { InvisibleScroll } from "../../shared/ui/InvisibleScroll";
 
@@ -19,6 +22,14 @@ const SidebarCard = styled(Card)`
   display: flex;
   flex-direction: column;
 
+  .p-card-body {
+    padding: 4%;
+  }
+
+  .p-card-title {
+    font-size: 1.05rem;
+  }
+
   .p-card-body,
   .p-card-content {
     display: flex;
@@ -26,15 +37,35 @@ const SidebarCard = styled(Card)`
     min-height: 0;
     flex: 1;
   }
+
+  @media (max-width: 70em) {
+    .p-card-body {
+      padding: 3%;
+    }
+
+    .p-card-title {
+      font-size: 0.9rem;
+    }
+  }
 `;
 
 const SidebarListScroll = styled(InvisibleScroll)`
   flex: 1;
   min-height: 0;
+  font-size: 0.9rem;
+
+  a {
+    font-size: inherit;
+    line-height: 1.3;
+  }
+
+  @media (max-width: 70em) {
+    font-size: 0.8rem;
+  }
 `;
 
 const DialogListScroll = styled(InvisibleScroll)`
-  max-height: min(70vh, 520px);
+  max-height: 70vh;
 `;
 
 const List = styled.ul`
@@ -59,7 +90,7 @@ type BidStatusSeverity = "success" | "warning" | "info" | "danger";
 const severityByStatus: Record<MyBidStatus, BidStatusSeverity> = {
   [MyBidStatus.Winning]: "success",
   [MyBidStatus.Outbid]: "warning",
-  [MyBidStatus.Won]: "info",
+  [MyBidStatus.Won]: "success",
   [MyBidStatus.Lost]: "danger",
   [MyBidStatus.Stale]: "warning",
 };
@@ -109,13 +140,11 @@ function MyBidListItems({ entries, onNavigate }: MyBidListItemsProps) {
 }
 
 export function MyBidsSidebar() {
-  const { data, status } = useAuctionList();
+  const { data, status } = useAuctionListReader();
+  const storageVersion = useAtomValue(bidderStorageVersionAtom);
+  void storageVersion;
   const username = loadBidderName();
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  if (!featureFlags.myBidsTracker) {
-    return null;
-  }
 
   const entries = collectMyBidEntries(status, data, username);
   const closeDialog = () => setDialogOpen(false);

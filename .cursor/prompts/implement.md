@@ -20,6 +20,9 @@ Implementation requirements:
 - avoid magic strings that should be enums types or consts
 - parsing and sanitization should be prayoratized to be handled using zod
 - if you can do it using a npm pack it is allways better than doing it yourself
+- tests should check logic or function behaviors and bounderies not string responses that can change or error messages (they can check error/exception type or code)
+- check for exsiting npm pack or implementation before doing a change you can maybe skip or reuse something
+- flag wiered code anti patterns and bad practises that must be fix
 
 Do not:
 
@@ -28,6 +31,8 @@ Do not:
 - rewrite unrelated code
 - generate multi return type functions (example: string | number | null)
 - use nested loops or nested functions
+- use ' as the format is " when possible
+- add something that can cause silent failers or problems that will be hard to find
 
 After implementation:
 

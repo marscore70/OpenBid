@@ -4,7 +4,7 @@ import type { StoredMyBid } from "../../shared/storage/bidderStorage";
 /**
  * Server-reset signal for My Bids: every tracked bid still maps to an auction
  * in the freshly fetched list, yet every stored amount is strictly above that
- * auction's server `currentBid` (impossible after a normal session — typical
+ * auction's server `currentBid` (impossible after a normal session - typical
  * after an in-memory mock restart that reused the same auction ids).
  *
  * Callers must pass the raw validated GET /api/auctions payload, not the

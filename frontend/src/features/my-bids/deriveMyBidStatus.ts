@@ -1,3 +1,4 @@
+import { isSameBidderIdentity } from "../../domain/bid/sanitizeBidderName";
 import type { AuctionSummary } from "../../shared/types/AuctionSummary";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { MyBidStatus } from "../../shared/types/MyBidStatus";
@@ -6,7 +7,7 @@ export type DeriveMyBidStatusInput = {
   /**
    * The matching auction from a successfully loaded list, or `undefined`
    * when it is genuinely absent from that list. Callers must only pass
-   * `undefined` once the list has loaded successfully — otherwise "not
+   * `undefined` once the list has loaded successfully - otherwise "not
    * fetched yet" would be misread as "removed" (see `collectMyBidEntries`).
    */
   auction: AuctionSummary | undefined;
@@ -24,7 +25,7 @@ export function deriveMyBidStatus({
     return MyBidStatus.Stale;
   }
   if (auction.status === AuctionStatus.Ended) {
-    return auction.currentBidder === username
+    return isSameBidderIdentity(auction.currentBidder, username)
       ? MyBidStatus.Won
       : MyBidStatus.Lost;
   }
@@ -35,7 +36,7 @@ export function deriveMyBidStatus({
   // (myLastBid === currentBid) with someone else as currentBidder is still
   // Outbid, not Winning (unlikely with strict-greater-than server bids, but
   // never safe to assume).
-  return auction.currentBidder === username
+  return isSameBidderIdentity(auction.currentBidder, username)
     ? MyBidStatus.Winning
     : MyBidStatus.Outbid;
 }

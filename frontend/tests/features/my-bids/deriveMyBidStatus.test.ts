@@ -88,6 +88,15 @@ describe("deriveMyBidStatus", () => {
     expect(status).toBe(MyBidStatus.Winning);
   });
 
+  it("reports Winning when the leader matches after identity normalization", () => {
+    const status = deriveMyBidStatus({
+      auction: { ...activeAuction, currentBidder: "Noa" },
+      username: "  noa  ",
+      myLastBid: 100,
+    });
+    expect(status).toBe(MyBidStatus.Winning);
+  });
+
   it("reports Outbid when active, not the leader, and the stored amount trails the current bid", () => {
     const status = deriveMyBidStatus({
       auction: activeAuction,

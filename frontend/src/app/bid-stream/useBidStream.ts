@@ -20,20 +20,41 @@ export type BidStreamApi = {
   retryConnection: () => void;
 };
 
+/** Subscribes only to connection status — use for header badge / retry. */
+export function useBidStreamConnectionStatus(): SseConnectionStatus {
+  return useAtomValue(connectionStatusAtom);
+}
+
+/** Subscribes only to snipe/timing bumps — use for countdown consumers. */
+export function useBidStreamTimingVersion(): number {
+  return useAtomValue(timingVersionAtom);
+}
+
+export { getDisplayTiming, clearDisplayTiming };
+
+export function enableNotificationSound(): void {
+  outbidNotifier.enableSound();
+}
+
+export function retryBidStreamConnection(): void {
+  bidStreamService.start();
+}
+
 /**
  * Facade over stream atoms + module registries/notifier.
- * Prefer this in UI; BidStreamProvider only starts the SSE subscription.
+ * Prefer focused hooks (`useBidStreamConnectionStatus` / `useBidStreamTimingVersion`)
+ * when you do not need both subscriptions.
  */
 export function useBidStream(): BidStreamApi {
-  const connectionStatus = useAtomValue(connectionStatusAtom);
-  const timingVersion = useAtomValue(timingVersionAtom);
+  const connectionStatus = useBidStreamConnectionStatus();
+  const timingVersion = useBidStreamTimingVersion();
 
   return {
     connectionStatus,
     timingVersion,
     getDisplayTiming,
     clearDisplayTiming,
-    enableNotificationSound: outbidNotifier.enableSound,
-    retryConnection: () => bidStreamService.start(),
+    enableNotificationSound,
+    retryConnection: retryBidStreamConnection,
   };
 }

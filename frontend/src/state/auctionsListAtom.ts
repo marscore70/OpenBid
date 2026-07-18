@@ -40,9 +40,8 @@ export function patchAuctionsList(
 
 /** Single logical resource, but keyed to reuse the generic generation guard. */
 const LIST_GENERATION_KEY = "auctions-list";
-const listGenerationGuard = createRequestGenerationGuard<
-  typeof LIST_GENERATION_KEY
->();
+const listGenerationGuard =
+  createRequestGenerationGuard<typeof LIST_GENERATION_KEY>();
 
 function mergeFetchedAuctionsList(
   cached: readonly AuctionSummary[],
@@ -57,8 +56,13 @@ function mergeFetchedAuctionsList(
 }
 
 export async function fetchAuctionsList(): Promise<void> {
-  const generation = listGenerationGuard.next(LIST_GENERATION_KEY);
   const current = readAuctionsList();
+  // Synchronous idle/in-flight guard: sibling StrictMode effects and dual
+  // callers that both saw Idle must not start a second network request.
+  if (current.status === LoadStatus.Loading) {
+    return;
+  }
+  const generation = listGenerationGuard.next(LIST_GENERATION_KEY);
   writeAuctionsList({
     ...current,
     status: LoadStatus.Loading,
@@ -71,7 +75,7 @@ export async function fetchAuctionsList(): Promise<void> {
       logger.debug("Discarding superseded auctions list response");
       return;
     }
-    // Reset signal uses the raw validated list only — before monotonic merge
+    // Reset signal uses the raw validated list only - before monotonic merge
     // could retain a higher client `currentBid` and hide a server restart.
     if (shouldClearMyBidsAfterListReconcile(loadMyBids(), fetched)) {
       clearMyBids();
@@ -134,7 +138,7 @@ export function lookupAuctionTitle(auctionId: string): {
 export function findAuctionTitleInList(auctionId: string): string {
   const lookup = lookupAuctionTitle(auctionId);
   if (!lookup.found) {
-    return "Auction";
+    return auctionId;
   }
   return lookup.title;
 }

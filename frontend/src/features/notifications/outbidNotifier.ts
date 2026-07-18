@@ -1,9 +1,5 @@
 import type { NewBidEvent } from "../../shared/types/NewBidEvent";
-import { featureFlags } from "../../config/features";
-import {
-  getMyLastBid,
-  loadBidderName,
-} from "../../shared/storage/bidderStorage";
+import { isSameBidderIdentity } from "../../domain/bid/sanitizeBidderName";
 import { findAuctionTitleInList } from "../../state/auctionsListAtom";
 
 export type OutbidToastListener = (detail: string) => void;
@@ -49,9 +45,6 @@ function playBeep(): void {
 }
 
 function enableSound(): void {
-  if (!featureFlags.outbidNotifications) {
-    return;
-  }
   try {
     if (!audioContext) {
       audioContext = new AudioContext();
@@ -64,18 +57,8 @@ function enableSound(): void {
   }
 }
 
+/** Side effect only — caller must already have passed `shouldNotifyOutbid`. */
 function notifyOutbid({ auctionId, title, amount }: OutbidNotifyParams): void {
-  if (!featureFlags.outbidNotifications) {
-    return;
-  }
-  const username = loadBidderName();
-  if (!username) {
-    return;
-  }
-  const myLast = getMyLastBid(auctionId);
-  if (myLast === undefined) {
-    return;
-  }
   const resolvedTitle = findAuctionTitleInList(auctionId) || title;
   emitOutbidToast(`Outbid on ${resolvedTitle}! New high bid: $${amount}`);
   playBeep();
@@ -95,16 +78,20 @@ export const outbidNotifier: OutbidNotifier = {
   enableSound,
 };
 
+/**
+ * True when a foreign bid displaces the local user as current leader.
+ * `previousLeader` is the cached `currentBidder` before the merge.
+ */
 export function shouldNotifyOutbid(
   event: NewBidEvent,
   username: string,
+  previousLeader: string | null,
 ): boolean {
-  if (!featureFlags.outbidNotifications || !username) {
+  if (!username) {
     return false;
   }
-  if (event.bidder === username) {
+  if (isSameBidderIdentity(event.bidder, username)) {
     return false;
   }
-  const myLast = getMyLastBid(event.auctionId);
-  return myLast !== undefined;
+  return isSameBidderIdentity(previousLeader, username);
 }

@@ -1,19 +1,23 @@
 import { useParams } from "react-router-dom";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Message } from "primereact/message";
+import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
+import styled from "styled-components";
 import { useAuctionDetail } from "./useAuctionDetail";
 import { BidForm } from "./BidForm";
 import { BidHistoryTable } from "./BidHistoryTable";
 import { BidHistoryChart } from "./BidHistoryChart";
 import { useFormattedCountdown } from "../auction-catalog/useCountdownTick";
-import { useBidStream } from "../../app/BidStreamProvider";
+import {
+  getDisplayTiming,
+  useBidStreamTimingVersion,
+} from "../../app/BidStreamProvider";
 import { resolveDisplayEndsAt } from "../../domain/snipe/SnipeExtensionPolicy";
 import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
 import { createDefaultDisplayTiming } from "../../domain/auction/DisplayTiming";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
-import { featureFlags } from "../../config/features";
 import {
   AuctionEmoji,
   AuctionHero,
@@ -27,12 +31,32 @@ import {
   HeroMeta,
   StatusRow,
 } from "./auctionDetailLayout";
+import {
+  EndedAuctionTone,
+  resolveEndedAuctionPresentation,
+} from "../../domain/auction/resolveEndedAuctionPresentation";
+import { resolveActiveBidPresentation } from "../../domain/auction/resolveActiveBidPresentation";
+import { loadBidderName } from "../../shared/storage/bidderStorage";
+import { formatActiveBidSummaryLines } from "../auction-catalog/formatActiveBidSummaryLines";
+
+const ErrorActions = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+`;
 
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, backgroundErrorMessage } =
-    useAuctionDetail(id);
-  const { getDisplayTiming, timingVersion } = useBidStream();
+  const {
+    data,
+    isLoading,
+    isError,
+    errorMessage,
+    backgroundErrorMessage,
+    refetch,
+  } = useAuctionDetail(id);
+  const timingVersion = useBidStreamTimingVersion();
   void timingVersion;
 
   const serverEndsAt = data?.endsAt ?? 0;
@@ -61,15 +85,40 @@ export function AuctionDetailPage() {
     return (
       <DetailPage>
         <DetailBackLink to="/">← Back to catalog</DetailBackLink>
-        <Message
-          severity="error"
-          text={error instanceof Error ? error.message : "Auction not found"}
-        />
+        <ErrorActions>
+          <Message
+            severity="error"
+            text={errorMessage || "Auction not found"}
+          />
+          <Button
+            type="button"
+            label="Retry"
+            icon="pi pi-refresh"
+            onClick={() => void refetch()}
+          />
+        </ErrorActions>
       </DetailPage>
     );
   }
 
-  const biddingDisabled = data.status === AuctionStatus.Ended;
+  const biddingDisabled =
+    data.status === AuctionStatus.Ended || visual === AuctionVisualStatus.Ended;
+  const endedPresentation =
+    data.status === AuctionStatus.Ended
+      ? resolveEndedAuctionPresentation({
+          currentBidder: data.currentBidder,
+          currentBid: data.currentBid,
+          myUsername: loadBidderName() || null,
+        })
+      : null;
+  const bidSummaryLines = formatActiveBidSummaryLines(
+    resolveActiveBidPresentation({
+      currentBid: data.currentBid,
+      currentBidder: data.currentBidder,
+      startPrice: data.startPrice,
+      status: data.status,
+    }),
+  );
 
   return (
     <DetailPage>
@@ -84,8 +133,12 @@ export function AuctionDetailPage() {
             <HeroMeta>
               <h1>{data.title}</h1>
               <p>
-                Current bid: <strong>${data.currentBid}</strong> — Leader:{" "}
-                {data.currentBidder ?? "—"}
+                {bidSummaryLines.map((line, index) => (
+                  <span key={line}>
+                    {index > 0 ? " - " : null}
+                    {line}
+                  </span>
+                ))}
               </p>
               <StatusRow>
                 {data.status === AuctionStatus.Active ? (
@@ -98,10 +151,18 @@ export function AuctionDetailPage() {
                     value={`${countdown} remaining`}
                   />
                 ) : (
-                  <Message
-                    severity="success"
-                    text={`Auction ended. Winner: ${data.currentBidder ?? "None"} at $${data.currentBid}`}
-                  />
+                  endedPresentation && (
+                    <Message
+                      severity={
+                        endedPresentation.tone === EndedAuctionTone.Warning
+                          ? "warn"
+                          : endedPresentation.tone === EndedAuctionTone.Success
+                            ? "success"
+                            : "info"
+                      }
+                      text={endedPresentation.detailMessage}
+                    />
+                  )
                 )}
                 {timing.snipeExtended &&
                   data.status === AuctionStatus.Active && (
@@ -120,17 +181,24 @@ export function AuctionDetailPage() {
               key={data.id}
               auctionId={data.id}
               currentBid={data.currentBid}
+              currentBidder={data.currentBidder}
               startPrice={data.startPrice}
               disabled={biddingDisabled}
             />
           </DetailSection>
 
-          {featureFlags.bidHistoryChart && (
-            <DetailChartSection>
-              <h2>Bid history chart</h2>
-              <BidHistoryChart history={data.bidHistory} />
-            </DetailChartSection>
-          )}
+          <DetailChartSection>
+            <h2>Bid history chart</h2>
+            <BidHistoryChart
+              history={data.bidHistory}
+              startPrice={data.startPrice}
+              soldPrice={
+                data.status === AuctionStatus.Ended
+                  ? data.currentBid
+                  : undefined
+              }
+            />
+          </DetailChartSection>
         </DetailColumn>
 
         <DetailColumn>

@@ -29,12 +29,56 @@ export const auctionDetailAtomFamily = atomFamily((_auctionId: string) =>
 
 const trackedAuctionDetailIdsAtom = atom<readonly string[]>([]);
 
+const MAX_TRACKED_DETAIL_IDS = 20;
+
+/** Keyed per auction id so concurrent fetches for different auctions never block each other. */
+const detailGenerationGuard = createRequestGenerationGuard<string>();
+
+function isAuctionDetailTracked(auctionId: string): boolean {
+  return auctionStore.get(trackedAuctionDetailIdsAtom).includes(auctionId);
+}
+
+function invalidateAuctionDetailRequests(auctionId: string): void {
+  // Bump generation so an in-flight fetch cannot pass isLatest and recreate
+  // the family atom after remove (untrack / eviction resurrection race).
+  detailGenerationGuard.next(auctionId);
+}
+
 export function trackAuctionDetailId(auctionId: string): void {
+  if (!auctionId) {
+    return;
+  }
   const current = auctionStore.get(trackedAuctionDetailIdsAtom);
   if (current.includes(auctionId)) {
     return;
   }
-  auctionStore.set(trackedAuctionDetailIdsAtom, [...current, auctionId]);
+  const next = [...current, auctionId];
+  // Cap reconnect herd: drop oldest tracked ids (and their family atoms).
+  while (next.length > MAX_TRACKED_DETAIL_IDS) {
+    const evicted = next.shift();
+    if (evicted) {
+      invalidateAuctionDetailRequests(evicted);
+      auctionDetailAtomFamily.remove(evicted);
+    }
+  }
+  auctionStore.set(trackedAuctionDetailIdsAtom, next);
+}
+
+/** Stops reconnect refetch for a detail page that unmounted. */
+export function untrackAuctionDetailId(auctionId: string): void {
+  if (!auctionId) {
+    return;
+  }
+  const current = auctionStore.get(trackedAuctionDetailIdsAtom);
+  if (!current.includes(auctionId)) {
+    return;
+  }
+  invalidateAuctionDetailRequests(auctionId);
+  auctionStore.set(
+    trackedAuctionDetailIdsAtom,
+    current.filter((id) => id !== auctionId),
+  );
+  auctionDetailAtomFamily.remove(auctionId);
 }
 
 export function listTrackedAuctionDetailIds(): readonly string[] {
@@ -59,8 +103,16 @@ export function patchAuctionDetail(
   writeAuctionDetail(auctionId, patch(readAuctionDetail(auctionId)));
 }
 
-/** Keyed per auction id so concurrent fetches for different auctions never block each other. */
-const detailGenerationGuard = createRequestGenerationGuard<string>();
+function canCommitAuctionDetail(
+  auctionId: string,
+  generation: number,
+): boolean {
+  if (!detailGenerationGuard.isLatest(auctionId, generation)) {
+    return false;
+  }
+  // Untrack removes membership + atom; refuse to recreate an orphan Success.
+  return isAuctionDetailTracked(auctionId);
+}
 
 export async function fetchAuctionDetail(auctionId: string): Promise<void> {
   trackAuctionDetailId(auctionId);
@@ -74,7 +126,7 @@ export async function fetchAuctionDetail(auctionId: string): Promise<void> {
 
   try {
     const fetched = await auctionsService.getById(auctionId);
-    if (!detailGenerationGuard.isLatest(auctionId, generation)) {
+    if (!canCommitAuctionDetail(auctionId, generation)) {
       logger.debug("Discarding superseded auction detail response", {
         auctionId,
       });
@@ -87,7 +139,7 @@ export async function fetchAuctionDetail(auctionId: string): Promise<void> {
       errorMessage: "",
     });
   } catch (error) {
-    if (!detailGenerationGuard.isLatest(auctionId, generation)) {
+    if (!canCommitAuctionDetail(auctionId, generation)) {
       logger.debug("Discarding superseded auction detail error", {
         auctionId,
       });

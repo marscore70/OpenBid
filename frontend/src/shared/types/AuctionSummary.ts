@@ -1,4 +1,4 @@
-import type { AuctionStatus } from './AuctionStatus';
+import type { AuctionStatus } from "./AuctionStatus";
 
 export type AuctionSummary = {
   id: string;

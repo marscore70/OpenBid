@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { ProgressSpinner } from "primereact/progressspinner";
@@ -12,6 +12,8 @@ import {
   minimumAllowedBid,
   validateBidAmount,
 } from "../../domain/bid/validateBidAmount";
+import { syncBidAmountTextToMinimum } from "../../domain/bid/syncBidAmountTextToMinimum";
+import { isSelfOutbidAttempt } from "../../domain/bid/isSelfOutbidAttempt";
 import {
   constrainBidderNameInput,
   MAX_BIDDER_LENGTH,
@@ -22,7 +24,7 @@ import {
   saveBidderName,
 } from "../../shared/storage/bidderStorage";
 import { getBidErrorMessage, usePlaceBid } from "./usePlaceBid";
-import { useBidStream } from "../../app/BidStreamProvider";
+import { enableNotificationSound } from "../../app/BidStreamProvider";
 
 const Form = styled.form`
   display: flex;
@@ -61,6 +63,7 @@ const ErrorText = styled.span`
 type BidFormProps = {
   auctionId: string;
   currentBid: number;
+  currentBidder: string | null;
   startPrice: number;
   disabled: boolean;
 };
@@ -68,6 +71,7 @@ type BidFormProps = {
 export function BidForm({
   auctionId,
   currentBid,
+  currentBidder,
   startPrice,
   disabled,
 }: BidFormProps) {
@@ -76,7 +80,10 @@ export function BidForm({
   const [amountText, setAmountText] = useState(String(minBid));
   const [localError, setLocalError] = useState("");
   const mutation = usePlaceBid(auctionId);
-  const { enableNotificationSound } = useBidStream();
+
+  useEffect(() => {
+    setAmountText((current) => syncBidAmountTextToMinimum(current, minBid));
+  }, [minBid]);
 
   const amountReady = isBidAmountValid(amountText, currentBid, startPrice);
   const amountHint = getBidAmountErrorMessage(
@@ -84,7 +91,9 @@ export function BidForm({
     currentBid,
     startPrice,
   );
-  const canSubmit = !disabled && !mutation.isPending && amountReady;
+  const selfOutbidBlocked = isSelfOutbidAttempt(currentBidder, bidder);
+  const canSubmit =
+    !disabled && !mutation.isPending && amountReady && !selfOutbidBlocked;
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -111,7 +120,10 @@ export function BidForm({
   const serverError = mutation.isError
     ? getBidErrorMessage(mutation.error)
     : "";
-  const formError = localError || serverError || amountHint;
+  const selfOutbidHint = selfOutbidBlocked
+    ? "You already have the highest bid."
+    : "";
+  const formError = localError || serverError || amountHint || selfOutbidHint;
 
   return (
     <Form onSubmit={onSubmit}>

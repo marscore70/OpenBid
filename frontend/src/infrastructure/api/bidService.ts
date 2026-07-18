@@ -1,5 +1,8 @@
 import type { AxiosInstance } from "axios";
-import { apiClient, HttpError, isHttpError } from "./httpClient";
+import { apiClient } from "./httpClient";
+import { placeBidSuccessSchema, type PlaceBidSuccess } from "./bidSchemas";
+
+export type { PlaceBidSuccess } from "./bidSchemas";
 
 export type PlaceBidPayload = {
   auctionId: string;
@@ -7,34 +10,26 @@ export type PlaceBidPayload = {
   amount: number;
 };
 
-export type PlaceBidSuccess = {
-  success: true;
-  bid_id: string;
-  currentBid: number;
-  message: string;
-};
+/** Thrown when POST /api/bid returns 200 with a body that fails Zod validation. */
+export class InvalidBidResponseError extends Error {
+  readonly name = "InvalidBidResponseError";
 
-export type PlaceBidErrorBody = {
-  error?: string;
-  currentBid?: number;
-  winner?: string | null;
-  finalPrice?: number;
-};
+  constructor() {
+    super("Place-bid response failed validation");
+  }
+}
 
 export class BidService {
   constructor(private readonly client: AxiosInstance) {}
 
   async placeBid(payload: PlaceBidPayload): Promise<PlaceBidSuccess> {
-    const { data } = await this.client.post<PlaceBidSuccess>(
-      "/api/bid",
-      payload,
-    );
-    return data;
+    const { data } = await this.client.post<unknown>("/api/bid", payload);
+    const parsed = placeBidSuccessSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new InvalidBidResponseError();
+    }
+    return parsed.data;
   }
 }
 
 export const bidService = new BidService(apiClient);
-
-export function isPlaceBidHttpError(error: unknown): error is HttpError {
-  return isHttpError(error);
-}

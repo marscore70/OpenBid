@@ -1,6 +1,6 @@
-import { AuctionStatus } from '../../shared/types/AuctionStatus';
-import { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
-import { computeTimeRemaining } from './computeTimeRemaining';
+import { AuctionStatus } from "../../shared/types/AuctionStatus";
+import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
+import { computeTimeRemaining } from "./computeTimeRemaining";
 
 const URGENT_THRESHOLD_MS = 30_000;
 

@@ -6,18 +6,20 @@ import { SseConnectionStatus } from "../../../src/shared/types/SseConnectionStat
 describe("ConnectionStatusBadge", () => {
   afterEach(cleanup);
 
-  it("shows Connected with no Retry action while connected", () => {
+  it("reports connected state without a retry action", () => {
     render(
       <ConnectionStatusBadge
         status={SseConnectionStatus.Connected}
         onRetry={vi.fn()}
       />,
     );
-    expect(screen.getByText("Connected")).toBeTruthy();
-    expect(screen.queryByText("Retry")).toBeNull();
+    expect(screen.getByRole("status").dataset.status).toBe(
+      SseConnectionStatus.Connected,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("shows Offline with a Retry action once disconnected, and calls onRetry when clicked", () => {
+  it("offers retry when disconnected and invokes the handler", () => {
     const onRetry = vi.fn();
     render(
       <ConnectionStatusBadge
@@ -25,14 +27,28 @@ describe("ConnectionStatusBadge", () => {
         onRetry={onRetry}
       />,
     );
-    expect(screen.getByText("Offline")).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Retry"));
+    expect(screen.getByRole("status").dataset.status).toBe(
+      SseConnectionStatus.Disconnected,
+    );
+    fireEvent.click(screen.getByRole("button"));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the Retry action while Connecting even when onRetry is provided", () => {
+    render(
+      <ConnectionStatusBadge
+        status={SseConnectionStatus.Connecting}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("status").dataset.status).toBe(
+      SseConnectionStatus.Connecting,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("omits the Retry action when no onRetry handler is provided", () => {
     render(<ConnectionStatusBadge status={SseConnectionStatus.Disconnected} />);
-    expect(screen.queryByText("Retry")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

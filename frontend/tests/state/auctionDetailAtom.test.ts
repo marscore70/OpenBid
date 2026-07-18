@@ -7,12 +7,18 @@ vi.mock("../../src/infrastructure/api/auctionsService", () => ({
 import { auctionsService } from "../../src/infrastructure/api/auctionsService";
 import {
   fetchAuctionDetail,
+  listTrackedAuctionDetailIds,
   readAuctionDetail,
+  untrackAuctionDetailId,
   writeAuctionDetail,
 } from "../../src/state/auctionDetailAtom";
 import { LoadStatus } from "../../src/state/LoadStatus";
 import { AuctionStatus } from "../../src/shared/types/AuctionStatus";
 import type { AuctionDetail } from "../../src/shared/types/AuctionDetail";
+import {
+  SERVER_ERROR_MESSAGE,
+  toSafeErrorMessage,
+} from "../../src/shared/errors/toSafeErrorMessage";
 
 const getByIdMock = vi.mocked(auctionsService.getById);
 
@@ -31,6 +37,7 @@ const detail: AuctionDetail = {
 describe("fetchAuctionDetail", () => {
   beforeEach(() => {
     getByIdMock.mockReset();
+    untrackAuctionDetailId("a1");
     writeAuctionDetail("a1", {
       data: null,
       status: LoadStatus.Idle,
@@ -64,6 +71,7 @@ describe("fetchAuctionDetail", () => {
       status: LoadStatus.Success,
       errorMessage: "",
     });
+    // writeAuctionDetail alone does not track; fetch will track.
     getByIdMock.mockRejectedValueOnce(new Error("network down"));
 
     await fetchAuctionDetail("a1");
@@ -71,7 +79,8 @@ describe("fetchAuctionDetail", () => {
     const state = readAuctionDetail("a1");
     expect(state.status).toBe(LoadStatus.Success);
     expect(state.data).toEqual(detail);
-    expect(state.errorMessage).toBe("network down");
+    expect(state.errorMessage).toBe(SERVER_ERROR_MESSAGE);
+    expect(state.errorMessage).toBe(toSafeErrorMessage(new Error("x")));
   });
 
   it("unions bid history rather than replacing it on a same-epoch refetch", async () => {
@@ -91,5 +100,35 @@ describe("fetchAuctionDetail", () => {
     await fetchAuctionDetail("a1");
 
     expect(readAuctionDetail("a1").data?.bidHistory).toHaveLength(2);
+  });
+
+  it("discards a late success after untrack so remount does not see orphan Success", async () => {
+    let resolveLate: ((value: AuctionDetail) => void) | undefined;
+    getByIdMock.mockImplementationOnce(
+      () =>
+        new Promise<AuctionDetail>((resolve) => {
+          resolveLate = resolve;
+        }),
+    );
+
+    const inFlight = fetchAuctionDetail("a1");
+    expect(listTrackedAuctionDetailIds()).toContain("a1");
+
+    untrackAuctionDetailId("a1");
+    expect(listTrackedAuctionDetailIds()).not.toContain("a1");
+
+    resolveLate?.({ ...detail, currentBid: 999 });
+    await inFlight;
+
+    // Family atom was removed; a fresh read is Idle with no data.
+    const afterUntrack = readAuctionDetail("a1");
+    expect(afterUntrack.status).toBe(LoadStatus.Idle);
+    expect(afterUntrack.data).toBeNull();
+
+    getByIdMock.mockResolvedValueOnce({ ...detail, currentBid: 150 });
+    await fetchAuctionDetail("a1");
+
+    expect(readAuctionDetail("a1").data?.currentBid).toBe(150);
+    expect(readAuctionDetail("a1").status).toBe(LoadStatus.Success);
   });
 });

@@ -4,15 +4,17 @@ import { loadMyBids } from "../../shared/storage/bidderStorage";
 import { deriveMyBidStatus } from "./deriveMyBidStatus";
 import type { MyBidEntry } from "./MyBidEntry";
 
-const FALLBACK_TITLE = "Auction";
 const FALLBACK_IMAGE = "❓";
 
 /**
  * An auction missing from a list that has not yet loaded successfully just
- * means "not fetched yet", not "removed" — only a `Success` list can prove
+ * means "not fetched yet", not "removed" - only a `Success` list can prove
  * absence, so judgment is skipped (not marked Stale) until then.
  */
-function shouldSkipJudgment(listStatus: LoadStatus, auctionFound: boolean): boolean {
+function shouldSkipJudgment(
+  listStatus: LoadStatus,
+  auctionFound: boolean,
+): boolean {
   return listStatus !== LoadStatus.Success && !auctionFound;
 }
 
@@ -34,7 +36,7 @@ export function collectMyBidEntries(
     }
     entries.push({
       auctionId: stored.auctionId,
-      title: auction?.title ?? FALLBACK_TITLE,
+      title: auction?.title ?? stored.auctionId,
       image: auction?.image ?? FALLBACK_IMAGE,
       status: deriveMyBidStatus({
         auction,

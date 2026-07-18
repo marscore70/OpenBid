@@ -1,7 +1,7 @@
 export const AuctionVisualStatus = {
-  Active: 'active',
-  Urgent: 'urgent',
-  Ended: 'ended',
+  Active: "active",
+  Urgent: "urgent",
+  Ended: "ended",
 } as const;
 
 export type AuctionVisualStatus =

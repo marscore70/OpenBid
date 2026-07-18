@@ -48,7 +48,7 @@ function toHttpError(error: AxiosError): HttpError {
   );
 }
 
-/** Shared Axios instance — base for domain API services. */
+/** Shared Axios instance - base for domain API services. */
 export const apiClient = createApiClient();
 
 export function isHttpError(error: unknown): error is HttpError {

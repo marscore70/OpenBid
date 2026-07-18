@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import { Link } from "react-router-dom";
-import { invisibleScrollbarCss } from "./InvisibleScroll";
 
 export const FlexColumn = styled.div`
   display: flex;
@@ -52,7 +51,7 @@ export const TextBackLink = styled(Link)`
 /** Flex host for PrimeReact DataTable with internal scroll. */
 export const DataTableFill = styled.div`
   flex: 1;
-  min-height: 320px;
+  min-height: 160px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -65,8 +64,7 @@ export const DataTableFill = styled.div`
     flex-direction: column;
   }
 
-  .p-datatable-wrapper,
-  .p-virtualscroller {
-    ${invisibleScrollbarCss}
+  .p-datatable-wrapper {
+    overflow: auto;
   }
 `;

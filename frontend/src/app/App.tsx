@@ -5,25 +5,33 @@ import { Toast } from "primereact/toast";
 import { useEffect, useRef } from "react";
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primeicons/primeicons.css";
-import { BidStreamProvider, useBidStream } from "./BidStreamProvider";
+import {
+  BidStreamProvider,
+  useBidStreamConnectionStatus,
+  retryBidStreamConnection,
+} from "./BidStreamProvider";
 import { AuctionCatalogPage } from "../features/auction-catalog/AuctionCatalogPage";
 import { AuctionDetailPage } from "../features/auction-detail/AuctionDetailPage";
 import { MyBidsSidebar } from "../features/my-bids/MyBidsSidebar";
+import { useAuctionList } from "../features/auction-catalog/useAuctionList";
 import { ConnectionStatusBadge } from "../shared/ui/ConnectionStatusBadge";
 import {
   AppHeader,
+  BrandLink,
   ContentColumn,
+  GlobalAppStyles,
   MainLayout,
   PageShell,
   SidebarColumn,
 } from "../shared/ui/layout";
-import { featureFlags } from "../config/features";
 import { outbidNotifier } from "../features/notifications/outbidNotifier";
 import { auctionStore } from "../state/auctionStore";
 
 function AppShell() {
   const toastRef = useRef<Toast>(null);
-  const { connectionStatus, retryConnection } = useBidStream();
+  const connectionStatus = useBidStreamConnectionStatus();
+  // Warm catalog for deep-links and My Bids (#18).
+  useAuctionList();
 
   useEffect(() => {
     return outbidNotifier.subscribe((detail) => {
@@ -38,17 +46,20 @@ function AppShell() {
 
   return (
     <PageShell>
+      <GlobalAppStyles />
       <Toast ref={toastRef} />
       <AppHeader>
         <div>
-          <strong>BidBlitz</strong>
+          <BrandLink to="/" aria-label="BidBlitz home">
+            <strong>BidBlitz</strong>
+          </BrandLink>
           <span style={{ marginLeft: "0.5rem", color: "#64748b" }}>
             Live garage auctions
           </span>
         </div>
         <ConnectionStatusBadge
           status={connectionStatus}
-          onRetry={retryConnection}
+          onRetry={retryBidStreamConnection}
         />
       </AppHeader>
       <MainLayout>
@@ -59,11 +70,9 @@ function AppShell() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ContentColumn>
-        {featureFlags.myBidsTracker && (
-          <SidebarColumn>
-            <MyBidsSidebar />
-          </SidebarColumn>
-        )}
+        <SidebarColumn>
+          <MyBidsSidebar />
+        </SidebarColumn>
       </MainLayout>
     </PageShell>
   );

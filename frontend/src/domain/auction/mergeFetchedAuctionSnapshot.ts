@@ -10,7 +10,7 @@ import { unionBidHistory } from "./unionBidHistory";
  * genuine server reset (e.g. the in-memory mock restarting with the same
  * auction ids); otherwise it is merged monotonically.
  *
- * `endsAt` is deliberately NOT used as the reset signal — a legitimate
+ * `endsAt` is deliberately NOT used as the reset signal - a legitimate
  * stacked snipe extension (see `backend/server.js`'s `applySnipeExtension`)
  * changes `endsAt` on the very same auction/epoch, so treating any `endsAt`
  * change as "new epoch" would let a stale/delayed GET response carrying an
@@ -22,13 +22,13 @@ import { unionBidHistory } from "./unionBidHistory";
  * actual response-send time, so a GET that was in flight when a newer bid
  * landed can legitimately arrive at the client *after* that bid's SSE
  * broadcast, describing a real-but-older state that is behind the
- * SSE-advanced cache — not a restart (see the "stale fetch" tests below,
+ * SSE-advanced cache - not a restart (see the "stale fetch" tests below,
  * which this merge must keep protecting). Server `currentBid` is otherwise
  * monotonically non-decreasing for the lifetime of a process, so the only
  * way a fetch can show it having regressed all the way back to `startPrice`
  * is a genuine restart; that is the narrower, safe signal used here. (A
- * restart caught on a *later* fetch — after a post-restart bid already
- * landed — is not detected by this check; a full page reload already covers
+ * restart caught on a *later* fetch - after a post-restart bid already
+ * landed - is not detected by this check; a full page reload already covers
  * that case by discarding the stale cache entirely.)
  */
 function isServerReset(

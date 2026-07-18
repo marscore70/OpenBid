@@ -17,6 +17,7 @@ import {
   loadMyBids,
   recordMyBid,
 } from "../../src/shared/storage/bidderStorage";
+import { SERVER_ERROR_MESSAGE } from "../../src/shared/errors/toSafeErrorMessage";
 
 const getAllMock = vi.mocked(auctionsService.getAll);
 
@@ -41,23 +42,25 @@ describe("fetchAuctionsList", () => {
     writeAuctionsList({ data: [], status: LoadStatus.Idle, errorMessage: "" });
   });
 
-  it("discards a superseded response so an in-flight fetch cannot overwrite a newer one", async () => {
-    let resolveFirst: ((value: AuctionSummary[]) => void) | undefined;
+  it("coalesces concurrent idle fetches into a single network request", async () => {
+    getAllMock.mockResolvedValueOnce([{ ...auction, currentBid: 200 }]);
+
+    await Promise.all([fetchAuctionsList(), fetchAuctionsList()]);
+
+    expect(getAllMock).toHaveBeenCalledTimes(1);
+    expect(readAuctionsList().data[0]?.currentBid).toBe(200);
+    expect(readAuctionsList().status).toBe(LoadStatus.Success);
+  });
+
+  it("starts a new request after the previous in-flight fetch settles", async () => {
     getAllMock
-      .mockImplementationOnce(
-        () =>
-          new Promise<AuctionSummary[]>((resolve) => {
-            resolveFirst = resolve;
-          }),
-      )
+      .mockResolvedValueOnce([{ ...auction, currentBid: 100 }])
       .mockResolvedValueOnce([{ ...auction, currentBid: 200 }]);
 
-    const firstFetch = fetchAuctionsList();
-    const secondFetch = fetchAuctionsList();
-    resolveFirst?.([{ ...auction, currentBid: 100 }]);
+    await fetchAuctionsList();
+    await fetchAuctionsList();
 
-    await Promise.all([firstFetch, secondFetch]);
-
+    expect(getAllMock).toHaveBeenCalledTimes(2);
     expect(readAuctionsList().data[0]?.currentBid).toBe(200);
   });
 
@@ -74,7 +77,7 @@ describe("fetchAuctionsList", () => {
     const state = readAuctionsList();
     expect(state.status).toBe(LoadStatus.Success);
     expect(state.data).toHaveLength(1);
-    expect(state.errorMessage).toBe("network down");
+    expect(state.errorMessage).toBe(SERVER_ERROR_MESSAGE);
   });
 
   it("surfaces Error status when there is no data to fall back on", async () => {
@@ -83,6 +86,7 @@ describe("fetchAuctionsList", () => {
     await fetchAuctionsList();
 
     expect(readAuctionsList().status).toBe(LoadStatus.Error);
+    expect(readAuctionsList().errorMessage).toBe(SERVER_ERROR_MESSAGE);
   });
 
   it("only advances currentBid when the fetched value is ahead of a same-epoch cached one", async () => {
@@ -128,35 +132,6 @@ describe("fetchAuctionsList", () => {
     ]);
   });
 
-  it("does not clear My Bids when a superseded list response would have matched the reset signal", async () => {
-    recordMyBid({ auctionId: "a1", amount: 500, timestamp: 1 });
-
-    let resolveFirst: ((value: AuctionSummary[]) => void) | undefined;
-    getAllMock
-      .mockImplementationOnce(
-        () =>
-          new Promise<AuctionSummary[]>((resolve) => {
-            resolveFirst = resolve;
-          }),
-      )
-      // Latest: stored 500 is not ahead of server 600 → must not clear.
-      .mockResolvedValueOnce([
-        { ...auction, id: "a1", currentBid: 600 },
-      ]);
-
-    const firstFetch = fetchAuctionsList();
-    const secondFetch = fetchAuctionsList();
-    // Superseded: stored 500 > server 100 would look like a reset if applied.
-    resolveFirst?.([{ ...auction, id: "a1", currentBid: 100 }]);
-
-    await Promise.all([firstFetch, secondFetch]);
-
-    expect(loadMyBids()).toEqual([
-      { auctionId: "a1", amount: 500, timestamp: 1 },
-    ]);
-    expect(readAuctionsList().data[0]?.currentBid).toBe(600);
-  });
-
   it("uses the raw fetched list for the reset signal even when merge keeps a higher cached bid", async () => {
     writeAuctionsList({
       data: [{ ...auction, id: "a1", currentBid: 600, currentBidder: "Noa" }],
@@ -166,7 +141,7 @@ describe("fetchAuctionsList", () => {
     recordMyBid({ auctionId: "a1", amount: 500, timestamp: 1 });
     // 300 is a stale-but-real (not startPrice) currentBid, so the summary
     // merge treats it as an ordinary lost race (keeps the higher cached
-    // 600), not a server reset — the My Bids clear signal below still
+    // 600), not a server reset - the My Bids clear signal below still
     // reads the raw fetched 300 independently of that merge decision.
     getAllMock.mockResolvedValueOnce([
       { ...auction, id: "a1", currentBid: 300, currentBidder: null },

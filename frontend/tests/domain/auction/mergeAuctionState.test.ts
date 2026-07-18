@@ -244,4 +244,54 @@ describe("merge auction state", () => {
     expect(merged.status).toBe(AuctionStatus.Ended);
     expect(merged.currentBidder).toBe("Noa");
   });
+
+  it("does not apply new_bid after the auction has already ended", () => {
+    const timing = createDisplayTimingRegistry();
+    const ended: AuctionSummary = {
+      ...baseAuction,
+      status: AuctionStatus.Ended,
+      currentBid: 150,
+      currentBidder: "Noa",
+      bidCount: 2,
+    };
+    const result = mergeNewBidIntoSummary(
+      ended,
+      {
+        auctionId: "a1",
+        bidder: "Late",
+        amount: 200,
+        previousBid: 150,
+        timestamp: Date.now(),
+        bid_id: "bid_after_end",
+        endsAt: baseEndsAt + 15_000,
+      },
+      timing,
+    );
+    expect(result.applied).toBe(false);
+    expect(result.auction).toBe(ended);
+    expect(result.auction.currentBidder).toBe("Noa");
+    expect(result.auction.currentBid).toBe(150);
+  });
+
+  it("keeps a higher cached bid when auction_ended finalPrice is lower", () => {
+    const timing = createDisplayTimingRegistry();
+    const merged = mergeAuctionEndedIntoSummary(
+      {
+        ...baseAuction,
+        currentBid: 200,
+        currentBidder: "Alice",
+      },
+      {
+        auctionId: "a1",
+        title: "Test",
+        winner: "Stale",
+        finalPrice: 100,
+        timestamp: Date.now(),
+      },
+      timing,
+    );
+    expect(merged.status).toBe(AuctionStatus.Ended);
+    expect(merged.currentBid).toBe(200);
+    expect(merged.currentBidder).toBe("Alice");
+  });
 });

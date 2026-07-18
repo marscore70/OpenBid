@@ -1,6 +1,7 @@
 import type { AuctionSummary } from "../../shared/types/AuctionSummary";
 import type { AuctionDetail } from "../../shared/types/AuctionDetail";
 import type { NewBidEvent } from "../../shared/types/NewBidEvent";
+import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import type { DisplayTimingRegistry } from "./DisplayTiming";
 import type { MergeNewBidResult } from "./MergeNewBidResult";
 import { applySnipeDisplayTimingOnBid } from "./applySnipeDisplayTimingOnBid";
@@ -11,6 +12,10 @@ export function mergeNewBidIntoSummary(
   timingRegistry: DisplayTimingRegistry,
 ): MergeNewBidResult<AuctionSummary> {
   if (event.auctionId !== auction.id) {
+    return { auction, applied: false };
+  }
+  // QUIRK 4: a late new_bid after auction_ended must not rewrite the winner.
+  if (auction.status === AuctionStatus.Ended) {
     return { auction, applied: false };
   }
   if (event.amount <= auction.currentBid) {
@@ -48,6 +53,9 @@ export function mergeNewBidIntoDetail(
   timingRegistry: DisplayTimingRegistry,
 ): MergeNewBidResult<AuctionDetail> {
   if (event.auctionId !== auction.id) {
+    return { auction, applied: false };
+  }
+  if (auction.status === AuctionStatus.Ended) {
     return { auction, applied: false };
   }
   if (event.amount <= auction.currentBid) {
