@@ -19,6 +19,14 @@ const SidebarCard = styled(Card)`
   display: flex;
   flex-direction: column;
 
+  .p-card-body {
+    padding: 4%;
+  }
+
+  .p-card-title {
+    font-size: 1.05rem;
+  }
+
   .p-card-body,
   .p-card-content {
     display: flex;
@@ -26,15 +34,35 @@ const SidebarCard = styled(Card)`
     min-height: 0;
     flex: 1;
   }
+
+  @media (max-width: 70em) {
+    .p-card-body {
+      padding: 3%;
+    }
+
+    .p-card-title {
+      font-size: 0.9rem;
+    }
+  }
 `;
 
 const SidebarListScroll = styled(InvisibleScroll)`
   flex: 1;
   min-height: 0;
+  font-size: 0.9rem;
+
+  a {
+    font-size: inherit;
+    line-height: 1.3;
+  }
+
+  @media (max-width: 70em) {
+    font-size: 0.8rem;
+  }
 `;
 
 const DialogListScroll = styled(InvisibleScroll)`
-  max-height: min(70vh, 520px);
+  max-height: 70vh;
 `;
 
 const List = styled.ul`
@@ -59,7 +87,7 @@ type BidStatusSeverity = "success" | "warning" | "info" | "danger";
 const severityByStatus: Record<MyBidStatus, BidStatusSeverity> = {
   [MyBidStatus.Winning]: "success",
   [MyBidStatus.Outbid]: "warning",
-  [MyBidStatus.Won]: "info",
+  [MyBidStatus.Won]: "success",
   [MyBidStatus.Lost]: "danger",
   [MyBidStatus.Stale]: "warning",
 };

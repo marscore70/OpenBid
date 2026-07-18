@@ -140,9 +140,7 @@ describe("fetchAuctionsList", () => {
           }),
       )
       // Latest: stored 500 is not ahead of server 600 → must not clear.
-      .mockResolvedValueOnce([
-        { ...auction, id: "a1", currentBid: 600 },
-      ]);
+      .mockResolvedValueOnce([{ ...auction, id: "a1", currentBid: 600 }]);
 
     const firstFetch = fetchAuctionsList();
     const secondFetch = fetchAuctionsList();
@@ -166,7 +164,7 @@ describe("fetchAuctionsList", () => {
     recordMyBid({ auctionId: "a1", amount: 500, timestamp: 1 });
     // 300 is a stale-but-real (not startPrice) currentBid, so the summary
     // merge treats it as an ordinary lost race (keeps the higher cached
-    // 600), not a server reset — the My Bids clear signal below still
+    // 600), not a server reset - the My Bids clear signal below still
     // reads the raw fetched 300 independently of that merge decision.
     getAllMock.mockResolvedValueOnce([
       { ...auction, id: "a1", currentBid: 300, currentBidder: null },

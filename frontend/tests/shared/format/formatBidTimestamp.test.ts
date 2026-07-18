@@ -18,7 +18,7 @@ describe("formatBidTimestamp", () => {
   });
 
   it("returns a placeholder for invalid timestamps", () => {
-    expect(formatBidTimestamp(Number.NaN)).toBe("—");
-    expect(formatBidTimestamp(Number.POSITIVE_INFINITY)).toBe("—");
+    expect(formatBidTimestamp(Number.NaN)).toBe("-");
+    expect(formatBidTimestamp(Number.POSITIVE_INFINITY)).toBe("-");
   });
 });

@@ -14,6 +14,7 @@ import {
   AppHeader,
   BrandLink,
   ContentColumn,
+  GlobalAppStyles,
   MainLayout,
   PageShell,
   SidebarColumn,
@@ -39,6 +40,7 @@ function AppShell() {
 
   return (
     <PageShell>
+      <GlobalAppStyles />
       <Toast ref={toastRef} />
       <AppHeader>
         <div>

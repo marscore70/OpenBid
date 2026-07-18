@@ -14,7 +14,10 @@ vi.mock("chart.js", () => {
       datasets: [{ data: [] as number[] }],
     };
     options = {
-      plugins: { tooltip: { enabled: false } },
+      plugins: {
+        tooltip: { enabled: false },
+        annotation: { annotations: {} },
+      },
       scales: { y: { suggestedMax: undefined as number | undefined } },
     };
     update = updateMock;
@@ -35,6 +38,10 @@ vi.mock("chart.js", () => {
     Tooltip: class Tooltip {},
   };
 });
+
+vi.mock("chartjs-plugin-annotation", () => ({
+  default: {},
+}));
 
 import { BidHistoryChart } from "../../../src/features/auction-detail/BidHistoryChart";
 
@@ -59,7 +66,9 @@ describe("BidHistoryChart", () => {
   });
 
   it("renders an empty chart placeholder when history is empty", () => {
-    const { container } = render(<BidHistoryChart history={[]} />);
+    const { container } = render(
+      <BidHistoryChart history={[]} startPrice={25} />,
+    );
     expect(container.querySelector("canvas")).toBeTruthy();
     expect(within(container).getByText("No bids yet")).toBeTruthy();
     expect(updateMock).toHaveBeenCalled();

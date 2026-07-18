@@ -40,9 +40,8 @@ export function patchAuctionsList(
 
 /** Single logical resource, but keyed to reuse the generic generation guard. */
 const LIST_GENERATION_KEY = "auctions-list";
-const listGenerationGuard = createRequestGenerationGuard<
-  typeof LIST_GENERATION_KEY
->();
+const listGenerationGuard =
+  createRequestGenerationGuard<typeof LIST_GENERATION_KEY>();
 
 function mergeFetchedAuctionsList(
   cached: readonly AuctionSummary[],
@@ -71,7 +70,7 @@ export async function fetchAuctionsList(): Promise<void> {
       logger.debug("Discarding superseded auctions list response");
       return;
     }
-    // Reset signal uses the raw validated list only — before monotonic merge
+    // Reset signal uses the raw validated list only - before monotonic merge
     // could retain a higher client `currentBid` and hide a server restart.
     if (shouldClearMyBidsAfterListReconcile(loadMyBids(), fetched)) {
       clearMyBids();

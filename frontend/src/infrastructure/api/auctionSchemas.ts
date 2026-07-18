@@ -5,7 +5,7 @@ import type { AuctionDetail } from "../../shared/types/AuctionDetail";
 import type { BidHistoryEntry } from "../../shared/types/BidHistoryEntry";
 
 /**
- * Zod boundary for `auctionsService` — the REST responses are network input,
+ * Zod boundary for `auctionsService` - the REST responses are network input,
  * not trusted data. Without this, a malformed `endsAt`/`currentBid` (missing,
  * `NaN`, or wrong type) would flow straight into
  * `mergeFetchedAuctionSummary`/`mergeFetchedAuctionDetail`, where an invalid

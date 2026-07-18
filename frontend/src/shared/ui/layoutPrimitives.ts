@@ -51,7 +51,7 @@ export const TextBackLink = styled(Link)`
 /** Flex host for PrimeReact DataTable with internal scroll. */
 export const DataTableFill = styled.div`
   flex: 1;
-  min-height: 320px;
+  min-height: 160px;
   height: 100%;
   display: flex;
   flex-direction: column;

@@ -8,7 +8,7 @@ import type { DisplayTimingRegistry } from "./DisplayTiming";
  * `auction.endsAt` for accepted bids in the closing window). The client's
  * only remaining job on an applied bid is to notice that the authoritative
  * `endsAt` increased and set a sticky `snipeExtended` flag for the
- * "Time extended" tag — no client-side arithmetic on the deadline itself,
+ * "Time extended" tag - no client-side arithmetic on the deadline itself,
  * which is what would risk double-extending on top of the server's own
  * stacked extension.
  */
@@ -19,8 +19,13 @@ export function applySnipeDisplayTimingOnBid(params: {
   auctionStatus: AuctionStatus;
   timingRegistry: DisplayTimingRegistry;
 }): boolean {
-  const { auctionId, previousEndsAt, nextEndsAt, auctionStatus, timingRegistry } =
-    params;
+  const {
+    auctionId,
+    previousEndsAt,
+    nextEndsAt,
+    auctionStatus,
+    timingRegistry,
+  } = params;
 
   if (!featureFlags.snipeProtection || auctionStatus !== AuctionStatus.Active) {
     return false;

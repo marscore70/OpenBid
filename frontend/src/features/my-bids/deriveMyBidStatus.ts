@@ -6,7 +6,7 @@ export type DeriveMyBidStatusInput = {
   /**
    * The matching auction from a successfully loaded list, or `undefined`
    * when it is genuinely absent from that list. Callers must only pass
-   * `undefined` once the list has loaded successfully — otherwise "not
+   * `undefined` once the list has loaded successfully - otherwise "not
    * fetched yet" would be misread as "removed" (see `collectMyBidEntries`).
    */
   auction: AuctionSummary | undefined;

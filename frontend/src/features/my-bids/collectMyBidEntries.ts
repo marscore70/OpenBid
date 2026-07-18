@@ -9,10 +9,13 @@ const FALLBACK_IMAGE = "❓";
 
 /**
  * An auction missing from a list that has not yet loaded successfully just
- * means "not fetched yet", not "removed" — only a `Success` list can prove
+ * means "not fetched yet", not "removed" - only a `Success` list can prove
  * absence, so judgment is skipped (not marked Stale) until then.
  */
-function shouldSkipJudgment(listStatus: LoadStatus, auctionFound: boolean): boolean {
+function shouldSkipJudgment(
+  listStatus: LoadStatus,
+  auctionFound: boolean,
+): boolean {
   return listStatus !== LoadStatus.Success && !auctionFound;
 }
 

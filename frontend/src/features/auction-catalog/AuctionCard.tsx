@@ -5,9 +5,11 @@ import type { AuctionSummary } from "../../shared/types/AuctionSummary";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
+import { resolveEndedAuctionPresentation } from "../../domain/auction/resolveEndedAuctionPresentation";
 import { useFormattedCountdown } from "./useCountdownTick";
 import { useBidStream } from "../../app/BidStreamProvider";
 import { resolveDisplayEndsAt } from "../../domain/snipe/SnipeExtensionPolicy";
+import { loadBidderName } from "../../shared/storage/bidderStorage";
 import { CardMeta, StatusStrip, WinnerBanner } from "../../shared/ui/layout";
 
 type AuctionCardProps = {
@@ -23,11 +25,16 @@ export function AuctionCard({ auction }: AuctionCardProps) {
     auction.endsAt,
     timing.displayEndsAt,
   );
-  const countdown = useFormattedCountdown(
-    auction.endsAt,
-    timing.displayEndsAt,
-  );
+  const countdown = useFormattedCountdown(auction.endsAt, timing.displayEndsAt);
   const visual = auctionVisualStatus(auction.status, displayEndsAt, Date.now());
+  const endedPresentation =
+    auction.status === AuctionStatus.Ended
+      ? resolveEndedAuctionPresentation({
+          currentBidder: auction.currentBidder,
+          currentBid: auction.currentBid,
+          myUsername: loadBidderName() || null,
+        })
+      : null;
 
   return (
     <Card
@@ -60,9 +67,9 @@ export function AuctionCard({ auction }: AuctionCardProps) {
         {timing.snipeExtended && auction.status === AuctionStatus.Active && (
           <Tag severity="warning" value="Time extended" />
         )}
-        {auction.status === AuctionStatus.Ended && (
-          <WinnerBanner>
-            Winner: {auction.currentBidder ?? "No bids"} — ${auction.currentBid}
+        {endedPresentation && (
+          <WinnerBanner $tone={endedPresentation.tone}>
+            {endedPresentation.catalogMessage}
           </WinnerBanner>
         )}
       </CardMeta>

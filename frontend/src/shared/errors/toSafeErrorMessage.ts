@@ -8,7 +8,7 @@ const SERVER_ERROR_MESSAGE =
 /**
  * Maps a caught error to a short, user-safe message. `HttpError.message`
  * embeds the internal request method/path/status (e.g. "GET /api/auctions
- * failed (500)") — useful for logs, but never safe to show verbatim in the
+ * failed (500)") - useful for logs, but never safe to show verbatim in the
  * UI. Callers must still log the raw error separately for full detail.
  */
 export function toSafeErrorMessage(error: unknown): string {

@@ -1,4 +1,4 @@
-import styled, { keyframes } from "styled-components";
+import styled, { createGlobalStyle, keyframes } from "styled-components";
 import { Link } from "react-router-dom";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 
@@ -7,8 +7,19 @@ const pulse = keyframes`
   50% { opacity: 0.55; }
 `;
 
+export const GlobalAppStyles = createGlobalStyle`
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+`;
+
 export const PageShell = styled.div`
-  height: 100vh;
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -21,7 +32,7 @@ export const AppHeader = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.25rem;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
 `;
@@ -35,19 +46,24 @@ export const BrandLink = styled(Link)`
   }
 `;
 
+/** Wider My Bids on full page; narrows on smaller viewports - widths in vw/%. */
 export const MainLayout = styled.div`
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(18vw, 24%);
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
   align-items: stretch;
   overflow: hidden;
 
-  @media (max-width: 960px) {
+  @media (max-width: 70em) {
+    grid-template-columns: minmax(0, 1fr) minmax(14vw, 18%);
+  }
+
+  @media (max-width: 48em) {
     grid-template-columns: minmax(0, 1fr);
-    overflow: auto;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 `;
 
@@ -69,17 +85,21 @@ export const SidebarColumn = styled.aside`
   min-height: 0;
   overflow: hidden;
   align-self: stretch;
+
+  @media (max-width: 48em) {
+    max-height: 18vh;
+  }
 `;
 
 export const CatalogGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
 `;
 
 export const StatusStrip = styled.div<{ $status: AuctionVisualStatus }>`
-  height: 4px;
-  border-radius: 4px 4px 0 0;
+  height: 0.25rem;
+  border-radius: 0.25rem 0.25rem 0 0;
   background: ${({ $status }) =>
     $status === AuctionVisualStatus.Active
       ? "#22c55e"
@@ -97,10 +117,31 @@ export const CardMeta = styled.div`
   gap: 0.35rem;
 `;
 
-export const WinnerBanner = styled.div`
+export const WinnerBanner = styled.div<{
+  $tone?: "warning" | "success" | "neutral";
+}>`
   margin-top: 0.5rem;
   padding: 0.5rem;
   border-radius: 0.375rem;
-  background: #f1f5f9;
   font-size: 0.875rem;
+  text-align: center;
+  background: ${({ $tone }) =>
+    $tone === "warning"
+      ? "#fef9c3"
+      : $tone === "success"
+        ? "#dcfce7"
+        : "#f1f5f9"};
+  color: ${({ $tone }) =>
+    $tone === "warning"
+      ? "#854d0e"
+      : $tone === "success"
+        ? "#166534"
+        : "#334155"};
+  border: 1px solid
+    ${({ $tone }) =>
+      $tone === "warning"
+        ? "#fde047"
+        : $tone === "success"
+          ? "#86efac"
+          : "#e2e8f0"};
 `;

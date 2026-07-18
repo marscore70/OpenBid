@@ -6,7 +6,7 @@ const SCIENTIFIC_NOTATION = /[eE]/;
 const PLAIN_DECIMAL = /^\d+(\.\d+)?$/;
 const NON_DIGIT = /\D/g;
 
-/** Digit budget for live input — matches `Number.MAX_SAFE_INTEGER` length. */
+/** Digit budget for live input - matches `Number.MAX_SAFE_INTEGER` length. */
 export const MAX_BID_AMOUNT_DIGITS = String(Number.MAX_SAFE_INTEGER).length;
 
 /** Live-input helper: digits only, capped length; does not enforce min bid. */

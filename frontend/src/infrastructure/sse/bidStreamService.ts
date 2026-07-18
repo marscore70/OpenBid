@@ -1,8 +1,8 @@
-import { getApiBaseUrl } from '../../config/env';
-import { logger } from '../../shared/logging/logger';
-import { SseConnectionStatus } from '../../shared/types/SseConnectionStatus';
-import { SseEventType } from '../../shared/types/SseEventType';
-import { parseSseData, type ParsedStreamEvent } from './parseSseMessage';
+import { getApiBaseUrl } from "../../config/env";
+import { logger } from "../../shared/logging/logger";
+import { SseConnectionStatus } from "../../shared/types/SseConnectionStatus";
+import { SseEventType } from "../../shared/types/SseEventType";
+import { parseSseData, type ParsedStreamEvent } from "./parseSseMessage";
 
 export type StreamListener = (event: ParsedStreamEvent) => void;
 export type StatusListener = (status: SseConnectionStatus) => void;
@@ -63,22 +63,22 @@ export class BidStreamService {
     // Cold start (attempt 0) reports nothing here; Connected is only emitted
     // from the real `open` handler below, so it never fires twice for one
     // connection. A retry attempt's Reconnecting status is emitted once, from
-    // `scheduleReconnect`, not repeated here — a single place per transition
+    // `scheduleReconnect`, not repeated here - a single place per transition
     // avoids the same status firing twice back-to-back for one reconnect.
-    logger.info('SSE connecting', { url, attempt: this.reconnectAttempt });
+    logger.info("SSE connecting", { url, attempt: this.reconnectAttempt });
 
     const source = new EventSource(url);
     this.source = source;
 
-    source.addEventListener('open', () => {
+    source.addEventListener("open", () => {
       this.reconnectAttempt = 0;
       this.setStatus(SseConnectionStatus.Connected);
-      logger.info('SSE connected');
+      logger.info("SSE connected");
     });
 
     const handleNamed = (event: Event): void => {
       const message = event as MessageEvent<string>;
-      const eventName = event.type === 'message' ? undefined : event.type;
+      const eventName = event.type === "message" ? undefined : event.type;
       const parsed = parseSseData(eventName, message.data);
       if (parsed.type !== SseEventType.Ignored) {
         this.emit(parsed);
@@ -93,7 +93,7 @@ export class BidStreamService {
     });
 
     source.onerror = () => {
-      logger.warn('SSE error or disconnect');
+      logger.warn("SSE error or disconnect");
       source.close();
       this.source = null;
       if (this.intentionalClose) {
@@ -106,7 +106,7 @@ export class BidStreamService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-      logger.error('SSE reconnect attempts exhausted; giving up', {
+      logger.error("SSE reconnect attempts exhausted; giving up", {
         attempts: this.reconnectAttempt,
       });
       this.reconnectAttempt = 0;
@@ -119,7 +119,7 @@ export class BidStreamService {
       MIN_RECONNECT_MS * 2 ** this.reconnectAttempt,
     );
     this.reconnectAttempt += 1;
-    logger.info('SSE scheduling reconnect', { delayMs: delay });
+    logger.info("SSE scheduling reconnect", { delayMs: delay });
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();

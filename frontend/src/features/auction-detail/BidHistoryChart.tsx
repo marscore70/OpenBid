@@ -9,6 +9,7 @@ import {
   Tooltip,
   type ChartConfiguration,
 } from "chart.js";
+import annotationPlugin from "chartjs-plugin-annotation";
 import styled from "styled-components";
 import type { BidHistoryEntry } from "../../shared/types/BidHistoryEntry";
 import { featureFlags } from "../../config/features";
@@ -18,6 +19,7 @@ import {
   EMPTY_CHART_SUGGESTED_MAX,
   EMPTY_CHART_LABEL,
 } from "./buildBidHistoryChartModel";
+import { buildPriceReferenceAnnotations } from "./buildPriceReferenceAnnotations";
 
 Chart.register(
   LineController,
@@ -26,10 +28,11 @@ Chart.register(
   LinearScale,
   CategoryScale,
   Tooltip,
+  annotationPlugin,
 );
 
-const CHART_MIN_HEIGHT_PX = 280;
-const CHART_MAX_HEIGHT_PX = 420;
+const CHART_MIN_HEIGHT_PX = 180;
+const CHART_MAX_HEIGHT_PX = 360;
 const EMPTY_CHART_MESSAGE = "No bids yet";
 
 const ChartShell = styled.div`
@@ -37,6 +40,11 @@ const ChartShell = styled.div`
   min-height: ${CHART_MIN_HEIGHT_PX}px;
   max-height: ${CHART_MAX_HEIGHT_PX}px;
   position: relative;
+
+  @media (max-height: 700px) {
+    min-height: 140px;
+    max-height: 220px;
+  }
 `;
 
 const ChartCanvas = styled.canvas`
@@ -48,21 +56,36 @@ const EmptyOverlay = styled.div`
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  padding-bottom: 1.5rem;
   pointer-events: none;
   color: #64748b;
   font-size: 0.95rem;
-  background: linear-gradient(
-    to bottom,
-    rgba(248, 250, 252, 0.15),
-    rgba(248, 250, 252, 0.55)
-  );
 `;
 
 type BidHistoryChartProps = {
   history: BidHistoryEntry[];
+  startPrice: number;
+  soldPrice?: number;
 };
+
+type ChartApplyInput = {
+  history: BidHistoryEntry[];
+  startPrice: number;
+  soldPrice?: number;
+};
+
+function resolveSuggestedMax(input: ChartApplyInput, isEmpty: boolean): number {
+  const peaks = [
+    input.startPrice,
+    ...(input.soldPrice !== undefined ? [input.soldPrice] : []),
+  ];
+  if (isEmpty) {
+    return Math.max(EMPTY_CHART_SUGGESTED_MAX, ...peaks);
+  }
+  return Math.max(...peaks, ...input.history.map((entry) => entry.amount));
+}
 
 function createEmptyChartConfig(): ChartConfiguration<"line"> {
   return {
@@ -87,6 +110,9 @@ function createEmptyChartConfig(): ChartConfiguration<"line"> {
       plugins: {
         legend: { display: false },
         tooltip: { enabled: false },
+        annotation: {
+          annotations: {},
+        },
       },
       scales: {
         x: {
@@ -105,11 +131,8 @@ function createEmptyChartConfig(): ChartConfiguration<"line"> {
   };
 }
 
-function applyChartModel(
-  chart: Chart<"line">,
-  history: BidHistoryEntry[],
-): void {
-  const model = buildBidHistoryChartModel(history);
+function applyChartModel(chart: Chart<"line">, input: ChartApplyInput): void {
+  const model = buildBidHistoryChartModel(input.history);
   const dataset = chart.data.datasets[0];
 
   chart.data.labels = model.labels;
@@ -122,15 +145,27 @@ function applyChartModel(
     tooltip.enabled = !model.isEmpty;
   }
 
+  const annotation = chart.options.plugins?.annotation;
+  if (annotation) {
+    annotation.annotations = buildPriceReferenceAnnotations({
+      startPrice: input.startPrice,
+      soldPrice: input.soldPrice,
+    });
+  }
+
   const yScale = chart.options.scales?.y;
   if (yScale) {
-    yScale.suggestedMax = model.isEmpty ? EMPTY_CHART_SUGGESTED_MAX : undefined;
+    yScale.suggestedMax = resolveSuggestedMax(input, model.isEmpty);
   }
 
   chart.update("none");
 }
 
-export function BidHistoryChart({ history }: BidHistoryChartProps) {
+export function BidHistoryChart({
+  history,
+  startPrice,
+  soldPrice,
+}: BidHistoryChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart<"line"> | null>(null);
   const isEmpty = history.length === 0;
@@ -143,7 +178,7 @@ export function BidHistoryChart({ history }: BidHistoryChartProps) {
 
     const chart = new Chart(canvas, createEmptyChartConfig());
     chartRef.current = chart;
-    applyChartModel(chart, history);
+    applyChartModel(chart, { history, startPrice, soldPrice });
 
     return () => {
       chart.destroy();
@@ -151,7 +186,7 @@ export function BidHistoryChart({ history }: BidHistoryChartProps) {
         chartRef.current = null;
       }
     };
-    // Mount once; history updates are applied in the effect below.
+    // Mount once; updates are applied in the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -159,8 +194,8 @@ export function BidHistoryChart({ history }: BidHistoryChartProps) {
     if (!chartRef.current) {
       return;
     }
-    applyChartModel(chartRef.current, history);
-  }, [history]);
+    applyChartModel(chartRef.current, { history, startPrice, soldPrice });
+  }, [history, startPrice, soldPrice]);
 
   if (!featureFlags.bidHistoryChart) {
     return null;

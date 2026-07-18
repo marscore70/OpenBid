@@ -27,6 +27,11 @@ import {
   HeroMeta,
   StatusRow,
 } from "./auctionDetailLayout";
+import {
+  EndedAuctionTone,
+  resolveEndedAuctionPresentation,
+} from "../../domain/auction/resolveEndedAuctionPresentation";
+import { loadBidderName } from "../../shared/storage/bidderStorage";
 
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +75,14 @@ export function AuctionDetailPage() {
   }
 
   const biddingDisabled = data.status === AuctionStatus.Ended;
+  const endedPresentation =
+    data.status === AuctionStatus.Ended
+      ? resolveEndedAuctionPresentation({
+          currentBidder: data.currentBidder,
+          currentBid: data.currentBid,
+          myUsername: loadBidderName() || null,
+        })
+      : null;
 
   return (
     <DetailPage>
@@ -84,8 +97,8 @@ export function AuctionDetailPage() {
             <HeroMeta>
               <h1>{data.title}</h1>
               <p>
-                Current bid: <strong>${data.currentBid}</strong> — Leader:{" "}
-                {data.currentBidder ?? "—"}
+                Current bid: <strong>${data.currentBid}</strong> - Leader:{" "}
+                {data.currentBidder ?? "-"}
               </p>
               <StatusRow>
                 {data.status === AuctionStatus.Active ? (
@@ -98,10 +111,18 @@ export function AuctionDetailPage() {
                     value={`${countdown} remaining`}
                   />
                 ) : (
-                  <Message
-                    severity="success"
-                    text={`Auction ended. Winner: ${data.currentBidder ?? "None"} at $${data.currentBid}`}
-                  />
+                  endedPresentation && (
+                    <Message
+                      severity={
+                        endedPresentation.tone === EndedAuctionTone.Warning
+                          ? "warn"
+                          : endedPresentation.tone === EndedAuctionTone.Success
+                            ? "success"
+                            : "info"
+                      }
+                      text={endedPresentation.detailMessage}
+                    />
+                  )
                 )}
                 {timing.snipeExtended &&
                   data.status === AuctionStatus.Active && (
@@ -128,7 +149,15 @@ export function AuctionDetailPage() {
           {featureFlags.bidHistoryChart && (
             <DetailChartSection>
               <h2>Bid history chart</h2>
-              <BidHistoryChart history={data.bidHistory} />
+              <BidHistoryChart
+                history={data.bidHistory}
+                startPrice={data.startPrice}
+                soldPrice={
+                  data.status === AuctionStatus.Ended
+                    ? data.currentBid
+                    : undefined
+                }
+              />
             </DetailChartSection>
           )}
         </DetailColumn>

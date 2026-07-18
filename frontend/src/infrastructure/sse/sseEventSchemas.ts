@@ -7,7 +7,7 @@ import type { NewBidEvent } from "../../shared/types/NewBidEvent";
  * all (`parseSseData` type-asserted `as NewBidEvent`). That gap is safe for
  * most fields today because `mergeNewBid*`'s `amount <= currentBid` guard
  * already rejects a malformed/`NaN` amount before it can corrupt state, but
- * the new authoritative `endsAt` field has no such guard downstream — a
+ * the new authoritative `endsAt` field has no such guard downstream - a
  * malformed value must be rejected here, at the parser boundary, rather
  * than trusted into the merge layer.
  */
