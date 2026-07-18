@@ -71,3 +71,11 @@ See [`docs/summary.md`](docs/summary.md) for the complete system walkthrough and
 ## Agentic work
 
 Agent prompts and Cursor rules live under [`.cursor/prompts`](.cursor/prompts) and [`.cursor/rules`](.cursor/rules).
+
+## Images 
+
+<img width="1859" height="957" alt="image" src="https://github.com/user-attachments/assets/8c9ef5c2-61f2-499d-af90-f8644c0b5eb5" />
+<img width="1859" height="948" alt="image" src="https://github.com/user-attachments/assets/e1d3b069-73ad-46c3-841a-e44fff9475c2" />
+<img width="1861" height="968" alt="image" src="https://github.com/user-attachments/assets/e20a9b06-200e-4359-91d3-9853abd5e751" />
+<img width="1875" height="960" alt="image" src="https://github.com/user-attachments/assets/b9bd7dbc-a196-46d6-8f3a-0f395452c461" />
+
