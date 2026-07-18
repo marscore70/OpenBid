@@ -64,4 +64,9 @@ See [`docs/summery.md`](docs/summery.md) for the complete system walkthrough and
 
 ## Submission docs
 
-- [`frontend/PROMPTS.md`](frontend/PROMPTS.md) — AI prompt log (assignment requirement)
+I strongly recommand reading [SUMMARY.md](../docs/summary.md) it explain the entire project
+And to see my full chat summarized go to [CHAT.md](../docs/chat.md)
+
+## Agentic work
+
+I worked with agents you can see all the prompts and rules under .cursor with /promp or /rule acordingly

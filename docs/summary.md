@@ -516,11 +516,6 @@ silently leak or disappear.
 One normalized bidder comparison is now used consistently across self-outbid, winner, My Bids,
 and notification logic.
 
-### Always-true feature flags were removed
-
-All four bonuses are final shipped features. Runtime branches that could never change were
-deleted to reduce dead code and make the actual product shape explicit.
-
 ### Containerization changed from development to production semantics
 
 The original compose/Vite-port setup did not match the nginx image. It was replaced by a
