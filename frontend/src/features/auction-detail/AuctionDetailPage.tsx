@@ -30,7 +30,8 @@ import {
 
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error } = useAuctionDetail(id);
+  const { data, isLoading, isError, error, backgroundErrorMessage } =
+    useAuctionDetail(id);
   const { getDisplayTiming, timingVersion } = useBidStream();
   void timingVersion;
 
@@ -73,6 +74,9 @@ export function AuctionDetailPage() {
   return (
     <DetailPage>
       <DetailBackLink to="/">← Back to catalog</DetailBackLink>
+      {backgroundErrorMessage && (
+        <Message severity="warn" text={backgroundErrorMessage} />
+      )}
       <DetailLayout>
         <DetailColumn>
           <AuctionHero>
@@ -103,7 +107,7 @@ export function AuctionDetailPage() {
                   data.status === AuctionStatus.Active && (
                     <Tag
                       severity="warning"
-                      value="Snipe protection: time extended (display only)"
+                      value="Snipe protection: time extended"
                     />
                   )}
               </StatusRow>

@@ -13,7 +13,8 @@ const CatalogLoading = styled(ScrollPane)`
 `;
 
 export function AuctionCatalogPage() {
-  const { data, isLoading, isError, error } = useAuctionList();
+  const { data, isLoading, isError, error, backgroundErrorMessage } =
+    useAuctionList();
 
   if (isLoading) {
     return (
@@ -49,6 +50,9 @@ export function AuctionCatalogPage() {
 
   return (
     <ScrollPane>
+      {backgroundErrorMessage && (
+        <Message severity="warn" text={backgroundErrorMessage} />
+      )}
       <CatalogGrid>
         {data.map((auction) => (
           <AuctionCard key={auction.id} auction={auction} />

@@ -1,6 +1,7 @@
-import type { NewBidEvent } from '../../shared/types/NewBidEvent';
 import type { AuctionEndedEvent } from '../../shared/types/AuctionEndedEvent';
+import type { NewBidEvent } from '../../shared/types/NewBidEvent';
 import { SseEventType } from '../../shared/types/SseEventType';
+import { newBidEventSchema } from './sseEventSchemas';
 
 export type ParsedStreamEvent =
   | { type: typeof SseEventType.Connected; timestamp: number }
@@ -35,7 +36,11 @@ export function parseSseData(
   }
 
   if (eventName === SseEventType.NewBid) {
-    return { type: SseEventType.NewBid, payload: parsed as NewBidEvent };
+    const result = newBidEventSchema.safeParse(parsed);
+    if (!result.success) {
+      return { type: SseEventType.Ignored };
+    }
+    return { type: SseEventType.NewBid, payload: result.data };
   }
 
   if (eventName === SseEventType.AuctionEnded) {

@@ -1,7 +1,12 @@
 import { atom } from "jotai";
 import { auctionsService } from "../infrastructure/api/auctionsService";
 import type { AuctionSummary } from "../shared/types/AuctionSummary";
+import { mergeFetchedAuctionSummary } from "../domain/auction/mergeFetchedAuctionSnapshot";
+import { shouldClearMyBidsAfterListReconcile } from "../features/my-bids/shouldClearMyBidsAfterListReconcile";
+import { clearMyBids, loadMyBids } from "../shared/storage/bidderStorage";
 import { logger } from "../shared/logging/logger";
+import { toSafeErrorMessage } from "../shared/errors/toSafeErrorMessage";
+import { createRequestGenerationGuard } from "./RequestGenerationGuard";
 import { auctionStore } from "./auctionStore";
 import { LoadStatus } from "./LoadStatus";
 
@@ -33,7 +38,26 @@ export function patchAuctionsList(
   writeAuctionsList(patch(readAuctionsList()));
 }
 
+/** Single logical resource, but keyed to reuse the generic generation guard. */
+const LIST_GENERATION_KEY = "auctions-list";
+const listGenerationGuard = createRequestGenerationGuard<
+  typeof LIST_GENERATION_KEY
+>();
+
+function mergeFetchedAuctionsList(
+  cached: readonly AuctionSummary[],
+  fetched: readonly AuctionSummary[],
+): AuctionSummary[] {
+  const cachedById = new Map(
+    cached.map((auction) => [auction.id, auction] as const),
+  );
+  return fetched.map((auction) =>
+    mergeFetchedAuctionSummary(cachedById.get(auction.id), auction),
+  );
+}
+
 export async function fetchAuctionsList(): Promise<void> {
+  const generation = listGenerationGuard.next(LIST_GENERATION_KEY);
   const current = readAuctionsList();
   writeAuctionsList({
     ...current,
@@ -42,19 +66,36 @@ export async function fetchAuctionsList(): Promise<void> {
   });
 
   try {
-    const data = await auctionsService.getAll();
+    const fetched = await auctionsService.getAll();
+    if (!listGenerationGuard.isLatest(LIST_GENERATION_KEY, generation)) {
+      logger.debug("Discarding superseded auctions list response");
+      return;
+    }
+    // Reset signal uses the raw validated list only — before monotonic merge
+    // could retain a higher client `currentBid` and hide a server restart.
+    if (shouldClearMyBidsAfterListReconcile(loadMyBids(), fetched)) {
+      clearMyBids();
+    }
+    const latest = readAuctionsList();
     writeAuctionsList({
-      data,
+      data: mergeFetchedAuctionsList(latest.data, fetched),
       status: LoadStatus.Success,
       errorMessage: "",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load auctions";
+    if (!listGenerationGuard.isLatest(LIST_GENERATION_KEY, generation)) {
+      logger.debug("Discarding superseded auctions list error");
+      return;
+    }
+    const message = toSafeErrorMessage(error);
     logger.error("Failed to fetch auctions list", { error: String(error) });
+    // Keep showing already-loaded data on a background refetch failure
+    // instead of replacing it with a full-page error (only surface Error
+    // status when there is nothing to show yet).
+    const latest = readAuctionsList();
     writeAuctionsList({
-      data: current.data,
-      status: LoadStatus.Error,
+      data: latest.data,
+      status: latest.data.length > 0 ? LoadStatus.Success : LoadStatus.Error,
       errorMessage: message,
     });
   }

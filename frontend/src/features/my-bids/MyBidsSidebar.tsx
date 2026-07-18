@@ -7,13 +7,10 @@ import styled from "styled-components";
 import { Link } from "react-router-dom";
 import { featureFlags } from "../../config/features";
 import { useAuctionList } from "../auction-catalog/useAuctionList";
-import { deriveMyBidStatus, type MyBidEntry } from "./deriveMyBidStatus";
-import {
-  getMyLastBid,
-  loadBidderName,
-} from "../../shared/storage/bidderStorage";
+import { collectMyBidEntries } from "./collectMyBidEntries";
+import type { MyBidEntry } from "./MyBidEntry";
+import { loadBidderName } from "../../shared/storage/bidderStorage";
 import { MyBidStatus } from "../../shared/types/MyBidStatus";
-import type { AuctionSummary } from "../../shared/types/AuctionSummary";
 import { InvisibleScroll } from "../../shared/ui/InvisibleScroll";
 
 const SidebarCard = styled(Card)`
@@ -56,19 +53,31 @@ const HeaderActions = styled.div`
   gap: 0.5rem;
 `;
 
-function severityForStatus(status: MyBidEntry["status"]) {
-  switch (status) {
-    case MyBidStatus.Winning:
-      return "success";
-    case MyBidStatus.Outbid:
-      return "warning";
-    case MyBidStatus.Won:
-      return "info";
-    case MyBidStatus.Lost:
-      return "danger";
-    default:
-      return "secondary";
-  }
+type BidStatusSeverity = "success" | "warning" | "info" | "danger";
+
+/** Exhaustive by construction: `Record<MyBidStatus, …>` fails to compile if a status is ever added without a mapping here. */
+const severityByStatus: Record<MyBidStatus, BidStatusSeverity> = {
+  [MyBidStatus.Winning]: "success",
+  [MyBidStatus.Outbid]: "warning",
+  [MyBidStatus.Won]: "info",
+  [MyBidStatus.Lost]: "danger",
+  [MyBidStatus.Stale]: "warning",
+};
+
+const labelByStatus: Record<MyBidStatus, string> = {
+  [MyBidStatus.Winning]: "Winning",
+  [MyBidStatus.Outbid]: "Outbid",
+  [MyBidStatus.Won]: "Won",
+  [MyBidStatus.Lost]: "Lost",
+  [MyBidStatus.Stale]: "Stale",
+};
+
+function severityForStatus(status: MyBidEntry["status"]): BidStatusSeverity {
+  return severityByStatus[status];
+}
+
+function labelForStatus(status: MyBidEntry["status"]): string {
+  return labelByStatus[status];
 }
 
 type MyBidListItemsProps = {
@@ -87,7 +96,7 @@ function MyBidListItems({ entries, onNavigate }: MyBidListItemsProps) {
           <div>
             <Tag
               severity={severityForStatus(entry.status)}
-              value={entry.status}
+              value={labelForStatus(entry.status)}
             />
             <span style={{ marginLeft: "0.35rem", fontSize: "0.75rem" }}>
               You: ${entry.myLastBid} · High: ${entry.currentBid}
@@ -99,30 +108,8 @@ function MyBidListItems({ entries, onNavigate }: MyBidListItemsProps) {
   );
 }
 
-function collectMyBidEntries(
-  auctions: readonly AuctionSummary[] | undefined,
-  username: string,
-): MyBidEntry[] {
-  const entries: MyBidEntry[] = [];
-  for (const auction of auctions ?? []) {
-    const myLastBid = getMyLastBid(auction.id);
-    if (myLastBid === undefined) {
-      continue;
-    }
-    entries.push({
-      auctionId: auction.id,
-      title: auction.title,
-      image: auction.image,
-      status: deriveMyBidStatus(auction, username, myLastBid),
-      currentBid: auction.currentBid,
-      myLastBid,
-    });
-  }
-  return entries;
-}
-
 export function MyBidsSidebar() {
-  const { data } = useAuctionList();
+  const { data, status } = useAuctionList();
   const username = loadBidderName();
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -130,7 +117,7 @@ export function MyBidsSidebar() {
     return null;
   }
 
-  const entries = collectMyBidEntries(data, username);
+  const entries = collectMyBidEntries(status, data, username);
   const closeDialog = () => setDialogOpen(false);
 
   return (

@@ -9,6 +9,8 @@ export type StatusListener = (status: SseConnectionStatus) => void;
 
 const MIN_RECONNECT_MS = 500;
 const MAX_RECONNECT_MS = 8000;
+/** Give up auto-reconnecting after this many failed attempts (user can reload to retry). */
+const MAX_RECONNECT_ATTEMPTS = 8;
 
 export class BidStreamService {
   private source: EventSource | null = null;
@@ -58,11 +60,11 @@ export class BidStreamService {
     }
     this.source?.close();
     const url = `${getApiBaseUrl()}/api/stream`;
-    this.setStatus(
-      this.reconnectAttempt > 0
-        ? SseConnectionStatus.Reconnecting
-        : SseConnectionStatus.Connected,
-    );
+    // Cold start (attempt 0) reports nothing here; Connected is only emitted
+    // from the real `open` handler below, so it never fires twice for one
+    // connection. A retry attempt's Reconnecting status is emitted once, from
+    // `scheduleReconnect`, not repeated here — a single place per transition
+    // avoids the same status firing twice back-to-back for one reconnect.
     logger.info('SSE connecting', { url, attempt: this.reconnectAttempt });
 
     const source = new EventSource(url);
@@ -103,6 +105,14 @@ export class BidStreamService {
   }
 
   private scheduleReconnect(): void {
+    if (this.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+      logger.error('SSE reconnect attempts exhausted; giving up', {
+        attempts: this.reconnectAttempt,
+      });
+      this.reconnectAttempt = 0;
+      this.setStatus(SseConnectionStatus.Disconnected);
+      return;
+    }
     this.setStatus(SseConnectionStatus.Reconnecting);
     const delay = Math.min(
       MAX_RECONNECT_MS,

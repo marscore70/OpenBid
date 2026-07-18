@@ -17,11 +17,16 @@ export function mergeNewBidIntoSummary(
     return { auction, applied: false };
   }
 
+  // The backend is authoritative for endsAt (including stacked snipe
+  // extensions). Math.max guards against a reordered/duplicate applied
+  // event ever rolling the deadline backward.
+  const nextEndsAt = Math.max(auction.endsAt, event.endsAt);
+
   applySnipeDisplayTimingOnBid({
     auctionId: auction.id,
-    serverEndsAt: auction.endsAt,
+    previousEndsAt: auction.endsAt,
+    nextEndsAt,
     auctionStatus: auction.status,
-    bidTimestamp: event.timestamp,
     timingRegistry,
   });
 
@@ -31,6 +36,7 @@ export function mergeNewBidIntoSummary(
       currentBid: event.amount,
       currentBidder: event.bidder,
       bidCount: auction.bidCount + 1,
+      endsAt: nextEndsAt,
     },
     applied: true,
   };
@@ -48,11 +54,13 @@ export function mergeNewBidIntoDetail(
     return { auction, applied: false };
   }
 
+  const nextEndsAt = Math.max(auction.endsAt, event.endsAt);
+
   applySnipeDisplayTimingOnBid({
     auctionId: auction.id,
-    serverEndsAt: auction.endsAt,
+    previousEndsAt: auction.endsAt,
+    nextEndsAt,
     auctionStatus: auction.status,
-    bidTimestamp: event.timestamp,
     timingRegistry,
   });
 
@@ -72,6 +80,7 @@ export function mergeNewBidIntoDetail(
       currentBid: event.amount,
       currentBidder: event.bidder,
       bidHistory,
+      endsAt: nextEndsAt,
     },
     applied: true,
   };
