@@ -243,3 +243,11 @@
 **AI:** Sidebar columns now `minmax(18vw, 24%)` (narrower under 70em). Added `resolveEndedAuctionPresentation` for no-bids/won-by-me/won-by-other copy+tone; wired into detail Message and catalog WinnerBanner; My Bids "Won" tag is success green. 154 tests green.
 
 ---
+
+## 2026-07-18 — Final production review (review.md + security-review.md)
+
+**User:** Use review.md and security-review.md agents for a hard final production review of the entire frontend; update docs/problems.md; move solved items to Fixed; rank Critical/High/Medium/Low; hunt race conditions and missing requirements vs task PDF / BidBlitz_Assignment_Clean.md.
+
+**AI:** Ran [Frontend code review](92f2da03-316b-4fa0-899e-1718b3007df5) + [Frontend security review](87b28c41-af28-48e5-ab14-31731691aea1) + race/requirements explore. Rewrote `docs/problems.md`: open Critical #1 (`auction_ended` unvalidated + sticky Ended); High #4 (400 non-monotonic), #6, #7, #21, **NEW #42** (`new_bid` after Ended); Medium includes **NEW #43–#45** (cold-start Offline flash, dedupe-before-apply, ungated logger) plus prior open items; Low #24–#50; Fixed section consolidated (moved solved #2/#3/#5/#8/#15/#17/#22/#29/#39/#40/#41 etc.). Requirements: all MUST + bonuses Pass with noted gaps. `npm audit` 0 vulns; no XSS sinks. Suggested cutover order: #1 → #42 → #4/#21 → #43 → #16/#18.
+
+---
