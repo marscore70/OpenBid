@@ -1,5 +1,5 @@
 import type { NewBidEvent } from "../../shared/types/NewBidEvent";
-import { featureFlags } from "../../config/features";
+import { isSameBidderIdentity } from "../../domain/bid/sanitizeBidderName";
 import { findAuctionTitleInList } from "../../state/auctionsListAtom";
 
 export type OutbidToastListener = (detail: string) => void;
@@ -45,9 +45,6 @@ function playBeep(): void {
 }
 
 function enableSound(): void {
-  if (!featureFlags.outbidNotifications) {
-    return;
-  }
   try {
     if (!audioContext) {
       audioContext = new AudioContext();
@@ -90,11 +87,11 @@ export function shouldNotifyOutbid(
   username: string,
   previousLeader: string | null,
 ): boolean {
-  if (!featureFlags.outbidNotifications || !username) {
+  if (!username) {
     return false;
   }
-  if (event.bidder === username) {
+  if (isSameBidderIdentity(event.bidder, username)) {
     return false;
   }
-  return previousLeader === username;
+  return isSameBidderIdentity(previousLeader, username);
 }

@@ -5,6 +5,7 @@ import type { AuctionSummary } from "../../shared/types/AuctionSummary";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
+import { resolveActiveBidPresentation } from "../../domain/auction/resolveActiveBidPresentation";
 import { resolveEndedAuctionPresentation } from "../../domain/auction/resolveEndedAuctionPresentation";
 import { useFormattedCountdown } from "./useCountdownTick";
 import {
@@ -14,6 +15,7 @@ import {
 import { resolveDisplayEndsAt } from "../../domain/snipe/SnipeExtensionPolicy";
 import { loadBidderName } from "../../shared/storage/bidderStorage";
 import { CardMeta, StatusStrip, WinnerBanner } from "../../shared/ui/layout";
+import { formatActiveBidSummaryLines } from "./formatActiveBidSummaryLines";
 
 type AuctionCardProps = {
   auction: AuctionSummary;
@@ -30,6 +32,14 @@ export function AuctionCard({ auction }: AuctionCardProps) {
   );
   const countdown = useFormattedCountdown(auction.endsAt, timing.displayEndsAt);
   const visual = auctionVisualStatus(auction.status, displayEndsAt, Date.now());
+  const bidSummaryLines = formatActiveBidSummaryLines(
+    resolveActiveBidPresentation({
+      currentBid: auction.currentBid,
+      currentBidder: auction.currentBidder,
+      startPrice: auction.startPrice,
+      status: auction.status,
+    }),
+  );
   const endedPresentation =
     auction.status === AuctionStatus.Ended
       ? resolveEndedAuctionPresentation({
@@ -55,8 +65,9 @@ export function AuctionCard({ auction }: AuctionCardProps) {
       <CardMeta>
         <div style={{ fontSize: "2rem" }}>{auction.image}</div>
         <strong>{auction.title}</strong>
-        <span>Current bid: ${auction.currentBid}</span>
-        <span>Leader: {auction.currentBidder ?? "—"}</span>
+        {bidSummaryLines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
         {auction.status === AuctionStatus.Active ? (
           <Tag
             severity={

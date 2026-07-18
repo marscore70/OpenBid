@@ -24,14 +24,13 @@ import {
   PageShell,
   SidebarColumn,
 } from "../shared/ui/layout";
-import { featureFlags } from "../config/features";
 import { outbidNotifier } from "../features/notifications/outbidNotifier";
 import { auctionStore } from "../state/auctionStore";
 
 function AppShell() {
   const toastRef = useRef<Toast>(null);
   const connectionStatus = useBidStreamConnectionStatus();
-  // Warm catalog for deep-links when My Bids sidebar is off (#18).
+  // Warm catalog for deep-links and My Bids (#18).
   useAuctionList();
 
   useEffect(() => {
@@ -71,11 +70,9 @@ function AppShell() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ContentColumn>
-        {featureFlags.myBidsTracker && (
-          <SidebarColumn>
-            <MyBidsSidebar />
-          </SidebarColumn>
-        )}
+        <SidebarColumn>
+          <MyBidsSidebar />
+        </SidebarColumn>
       </MainLayout>
     </PageShell>
   );

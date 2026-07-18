@@ -14,7 +14,6 @@ export function constrainBidAmountInput(raw: string): string {
   return raw.replace(NON_DIGIT, "").slice(0, MAX_BID_AMOUNT_DIGITS);
 }
 
-//?  string normalization and validation
 const bidAmountFromStringSchema = z
   .string()
   .transform((value) => value.replace(/\s+/g, ""))
@@ -28,6 +27,13 @@ const bidAmountFromStringSchema = z
       .refine((value) => PLAIN_DECIMAL.test(value), { message: INVALID_AMOUNT })
       .transform((value) => Number(value)),
   );
+
+export function minimumAllowedBid(
+  currentBid: number,
+  startPrice: number,
+): number {
+  return Math.max(currentBid, startPrice) + 1;
+}
 
 function bidAmountSchema(currentBid: number, startPrice: number) {
   const minimumCompetingBid = Math.max(currentBid, startPrice);
@@ -59,7 +65,6 @@ function bidAmountSchema(currentBid: number, startPrice: number) {
     );
 }
 
-//? Validates and normalizes a bid amount.
 export function validateBidAmount(
   amount: unknown,
   currentBid: number,
@@ -97,15 +102,5 @@ export function getBidValidationMessage(error: unknown): string {
   if (error instanceof z.ZodError) {
     return error.issues[0]?.message ?? "Invalid input.";
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
   return "Invalid input.";
-}
-
-export function minimumAllowedBid(
-  currentBid: number,
-  startPrice: number,
-): number {
-  return Math.max(currentBid, startPrice) + 1;
 }

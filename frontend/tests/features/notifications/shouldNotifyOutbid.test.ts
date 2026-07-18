@@ -27,6 +27,10 @@ describe("shouldNotifyOutbid", () => {
     );
   });
 
+  it("treats case variants of the previous leader as the same identity", () => {
+    expect(shouldNotifyOutbid(baseEvent, "me", "Me")).toBe(true);
+  });
+
   it("does not notify without a username", () => {
     expect(shouldNotifyOutbid(baseEvent, "", "Me")).toBe(false);
   });

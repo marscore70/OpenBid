@@ -1,3 +1,5 @@
+import { isSameBidderIdentity } from "../bid/sanitizeBidderName";
+
 export const EndedAuctionOutcome = {
   NoBids: "no_bids",
   WonByMe: "won_by_me",
@@ -16,8 +18,7 @@ export const EndedAuctionTone = {
 export type EndedAuctionTone =
   (typeof EndedAuctionTone)[keyof typeof EndedAuctionTone];
 
-const ENDED_WITHOUT_BIDS_MESSAGE = "Auction ended without bids";
-const NO_BIDS_YET_MESSAGE = "No bids yet";
+const CLOSED_WITHOUT_SALE_MESSAGE = "Closed without a sale";
 
 export type EndedAuctionPresentation = {
   outcome: EndedAuctionOutcome;
@@ -39,12 +40,12 @@ export function resolveEndedAuctionPresentation(
     return {
       outcome: EndedAuctionOutcome.NoBids,
       tone: EndedAuctionTone.Warning,
-      catalogMessage: NO_BIDS_YET_MESSAGE,
-      detailMessage: ENDED_WITHOUT_BIDS_MESSAGE,
+      catalogMessage: CLOSED_WITHOUT_SALE_MESSAGE,
+      detailMessage: CLOSED_WITHOUT_SALE_MESSAGE,
     };
   }
 
-  if (input.myUsername !== null && input.currentBidder === input.myUsername) {
+  if (isSameBidderIdentity(input.currentBidder, input.myUsername)) {
     return {
       outcome: EndedAuctionOutcome.WonByMe,
       tone: EndedAuctionTone.Success,

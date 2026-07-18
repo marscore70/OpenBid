@@ -18,7 +18,6 @@ import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
 import { createDefaultDisplayTiming } from "../../domain/auction/DisplayTiming";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
-import { featureFlags } from "../../config/features";
 import {
   AuctionEmoji,
   AuctionHero,
@@ -36,7 +35,9 @@ import {
   EndedAuctionTone,
   resolveEndedAuctionPresentation,
 } from "../../domain/auction/resolveEndedAuctionPresentation";
+import { resolveActiveBidPresentation } from "../../domain/auction/resolveActiveBidPresentation";
 import { loadBidderName } from "../../shared/storage/bidderStorage";
+import { formatActiveBidSummaryLines } from "../auction-catalog/formatActiveBidSummaryLines";
 
 const ErrorActions = styled.div`
   display: flex;
@@ -47,8 +48,14 @@ const ErrorActions = styled.div`
 
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, backgroundErrorMessage, refetch } =
-    useAuctionDetail(id);
+  const {
+    data,
+    isLoading,
+    isError,
+    errorMessage,
+    backgroundErrorMessage,
+    refetch,
+  } = useAuctionDetail(id);
   const timingVersion = useBidStreamTimingVersion();
   void timingVersion;
 
@@ -81,7 +88,7 @@ export function AuctionDetailPage() {
         <ErrorActions>
           <Message
             severity="error"
-            text={error instanceof Error ? error.message : "Auction not found"}
+            text={errorMessage || "Auction not found"}
           />
           <Button
             type="button"
@@ -104,6 +111,14 @@ export function AuctionDetailPage() {
           myUsername: loadBidderName() || null,
         })
       : null;
+  const bidSummaryLines = formatActiveBidSummaryLines(
+    resolveActiveBidPresentation({
+      currentBid: data.currentBid,
+      currentBidder: data.currentBidder,
+      startPrice: data.startPrice,
+      status: data.status,
+    }),
+  );
 
   return (
     <DetailPage>
@@ -118,8 +133,12 @@ export function AuctionDetailPage() {
             <HeroMeta>
               <h1>{data.title}</h1>
               <p>
-                Current bid: <strong>${data.currentBid}</strong> - Leader:{" "}
-                {data.currentBidder ?? "-"}
+                {bidSummaryLines.map((line, index) => (
+                  <span key={line}>
+                    {index > 0 ? " - " : null}
+                    {line}
+                  </span>
+                ))}
               </p>
               <StatusRow>
                 {data.status === AuctionStatus.Active ? (
@@ -168,20 +187,18 @@ export function AuctionDetailPage() {
             />
           </DetailSection>
 
-          {featureFlags.bidHistoryChart && (
-            <DetailChartSection>
-              <h2>Bid history chart</h2>
-              <BidHistoryChart
-                history={data.bidHistory}
-                startPrice={data.startPrice}
-                soldPrice={
-                  data.status === AuctionStatus.Ended
-                    ? data.currentBid
-                    : undefined
-                }
-              />
-            </DetailChartSection>
-          )}
+          <DetailChartSection>
+            <h2>Bid history chart</h2>
+            <BidHistoryChart
+              history={data.bidHistory}
+              startPrice={data.startPrice}
+              soldPrice={
+                data.status === AuctionStatus.Ended
+                  ? data.currentBid
+                  : undefined
+              }
+            />
+          </DetailChartSection>
         </DetailColumn>
 
         <DetailColumn>

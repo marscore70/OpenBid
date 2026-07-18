@@ -28,6 +28,16 @@ describe("resolveEndedAuctionPresentation", () => {
     expect(result.tone).toBe(EndedAuctionTone.Success);
   });
 
+  it("treats case variants as my win", () => {
+    const result = resolveEndedAuctionPresentation({
+      currentBidder: "Alice",
+      currentBid: 200,
+      myUsername: "  alice  ",
+    });
+
+    expect(result.outcome).toBe(EndedAuctionOutcome.WonByMe);
+  });
+
   it("marks another bidder's win as neutral", () => {
     const result = resolveEndedAuctionPresentation({
       currentBidder: "Bob",

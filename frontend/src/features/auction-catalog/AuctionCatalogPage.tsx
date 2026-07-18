@@ -21,8 +21,14 @@ const ErrorActions = styled.div`
 `;
 
 export function AuctionCatalogPage() {
-  const { data, isLoading, isError, error, backgroundErrorMessage, refetch } =
-    useAuctionListReader();
+  const {
+    data,
+    isLoading,
+    isError,
+    errorMessage,
+    backgroundErrorMessage,
+    refetch,
+  } = useAuctionListReader();
 
   if (isLoading) {
     return (
@@ -36,12 +42,7 @@ export function AuctionCatalogPage() {
     return (
       <ScrollPane>
         <ErrorActions>
-          <Message
-            severity="error"
-            text={
-              error instanceof Error ? error.message : "Failed to load auctions"
-            }
-          />
+          <Message severity="error" text={errorMessage} />
           <Button
             type="button"
             label="Retry"

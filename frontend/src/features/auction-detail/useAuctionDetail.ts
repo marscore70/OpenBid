@@ -44,10 +44,7 @@ export function useAuctionDetail(id: string | undefined) {
       state.data === null &&
       (state.status === LoadStatus.Idle || state.status === LoadStatus.Loading),
     isError: state.status === LoadStatus.Error,
-    error:
-      state.status === LoadStatus.Error ? new Error(state.errorMessage) : null,
-    // Non-destructive: a background refetch failure keeps `status` at
-    // Success (and `data` intact) but still surfaces `errorMessage`.
+    errorMessage: state.status === LoadStatus.Error ? state.errorMessage : "",
     backgroundErrorMessage:
       state.status === LoadStatus.Success && state.data
         ? state.errorMessage

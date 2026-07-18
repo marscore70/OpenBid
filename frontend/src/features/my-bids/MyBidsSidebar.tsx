@@ -6,7 +6,6 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
-import { featureFlags } from "../../config/features";
 import { useAuctionListReader } from "../auction-catalog/useAuctionList";
 import { collectMyBidEntries } from "./collectMyBidEntries";
 import type { MyBidEntry } from "./MyBidEntry";
@@ -146,10 +145,6 @@ export function MyBidsSidebar() {
   void storageVersion;
   const username = loadBidderName();
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  if (!featureFlags.myBidsTracker) {
-    return null;
-  }
 
   const entries = collectMyBidEntries(status, data, username);
   const closeDialog = () => setDialogOpen(false);

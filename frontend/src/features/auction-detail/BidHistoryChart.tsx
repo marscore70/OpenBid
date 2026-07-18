@@ -12,7 +12,6 @@ import {
 import annotationPlugin from "chartjs-plugin-annotation";
 import styled from "styled-components";
 import type { BidHistoryEntry } from "../../shared/types/BidHistoryEntry";
-import { featureFlags } from "../../config/features";
 import {
   buildBidHistoryChartModel,
   CHART_BORDER_COLOR,
@@ -196,10 +195,6 @@ export function BidHistoryChart({
     }
     applyChartModel(chartRef.current, { history, startPrice, soldPrice });
   }, [history, startPrice, soldPrice]);
-
-  if (!featureFlags.bidHistoryChart) {
-    return null;
-  }
 
   return (
     <ChartShell>

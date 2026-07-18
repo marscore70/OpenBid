@@ -313,3 +313,80 @@ block user from out bidding himself
 **AI:** Added a normalized bidder-identity guard and wired the current leader into `BidForm`, preventing submission when the bidder is already leading. Added behavior/boundary tests. TypeScript clean, 183/183 tests pass, and no lint errors.
 
 ---
+
+## 2026-07-18 ï¿½ Production gate (final review + security)
+
+**User:** Final pre-prod check ï¿½ call review.md and security-review.md agents; extremely harsh; catch bad tests/code/practices/Docker/version pins; document in docs/problems.md.
+
+**AI:** Ran Bugbot + Security Review + harsh explore. Verdict: app logic GO for mock/dev; Docker/compose/nginx NO-GO (missing VITE_API_BASE_URL build ARG ? white screen; compose 5173/dev mounts vs nginx:80; no /api proxy + CSP localhost-only). High: authless #5 (accepted), CSP docs drift, README still claims TanStack Query, prod env crash untested. Medium: toLocaleLowerCase identity, My Bids exact === mismatch, Unicode/bidi gaps, caret deps, floating image tags, nginx root/no healthcheck. Security: no Critical XSS; npm audit 0; 183/183 tests. Open items written to docs/problems.md.
+
+---
+
+## 2026-07-18 ï¿½ Implement production-gate findings
+
+**User:** call the @.cursor/prompts/implement.md agent to solve those problems right now
+
+**AI:** Implemented Critical #1ï¿½#3 (same-origin VITE_API_BASE_URL="", compose 8080 + healthchecks, nginx /api proxy + CSP connect-src 'self', unprivileged pinned nginx). Fixed README jotai claim, resolveApiBaseUrl + tests, shared bidder identity + Unicode NFKC/bidi strip, exact dep pins, Node 22 docs. Left #5 auth and feature-flag YAGNI. Verification: tsc clean, 196/196 tests, npm audit 0. Updated docs/problems.md.
+
+---
+
+## 2026-07-18 ï¿½ Opening bid copy + startPrice first bid
+
+**User:** when no bids instead of Current bid / empty Leader show bidding starts at start price; allow bidding the starting price. Use implement.md.
+**AI:** Added resolveActiveBidPresentation (opening/led/ended-without-bids) for catalog+detail. Bid validation allows startPrice with no leader. Minimal mock-server exception for opening bids (amount >= startPrice). Tests 201/201; tsc clean. Restart node server.js to pick up backend change.
+
+---
+
+## 2026-07-18 ï¿½ Final requirements + security review then implement
+
+**User:** Verify all requirements/bonuses; technical quality; XSS/security and fix immediately; ended without bids ? closed without a sale (yellow); review.md then implement.md.
+**AI:** Review: all MUST + 4 bonuses Pass; no XSS sinks; npm audit 0. Implemented Closed without a sale (warning), suppressed duplicate ended lines, safer errorMessage UI + getBidValidationMessage. tsc clean; 201/201 tests.
+
+---
+
+## 2026-07-18 ï¿½ Revert frontend to match stock server bid rule
+
+**User:** Do not change server; reverting opening-bid server lines; make frontend work with amount > currentBid; call reviewer when done.
+**AI:** Restored minimumAllowedBid / Zod to require amount > max(currentBid, startPrice) (first bid startPrice+1). Removed currentBidder from validation API. Kept opening display copy. Backend untouched. tsc clean; 200/200 tests. Launching reviewer.
+
+---
+
+## 2026-07-18 ï¿½ Reviewer after bid-rule realign
+
+**User:** (reviewer after frontend match to stock server)
+**AI:** Bugbot: Medium - Opening copy when null leader but currentBid > startPrice. Fixed Opening to require currentBid <= startPrice. Validation aligned with amount > currentBid. 201 tests.
+
+---
+
+## 2026-07-18 ï¿½ Opening min=startPrice, remove feature flags, pin backend Docker
+
+**User:** min bid = starting price not +1; fix feature flags YAGNI; implement.md then harsh review.md; no server.js but Dockerfile OK.
+**AI:** Client opening floor = startPrice; removed features.ts; pinned backend Dockerfile node:22.17.0-alpine. Documented High #22 stock server 400 on amount===startPrice. 201 tests. Launching harsh review.
+
+---
+
+## 2026-07-18 ï¿½ Harsh final review after implement
+
+**User:** (review.md after min=startPrice + feature flags)
+**AI:** Reviewer NO-GO: Critical #22 client/server opening-bid mismatch (default form 400). Feature flags clean; Dockerfile pin OK; README snipe lie fixed. Need explicit server.js exception OR revert client to startPrice+1.
+
+---
+
+## 2026-07-18 ? Restore minimum and document the system
+
+**User:** revert the min bid to be as it should (startingPrice+1)
+
+now lets make summery.md and in this file explain every dession we took along the way why we did it and how it works  
+explain how everything in the project works
+for example why we need validations etc
+
+**AI:** Restored the frontend minimum bid to `max(currentBid, startPrice) + 1`, matching the frozen server. Added `docs/summery.md` with the complete architecture, runtime flows, validation/security rationale, race handling, bonuses, Docker setup, testing strategy, decisions, and tradeoffs; linked it from README. Production build and 201/201 tests pass; npm audit reports 0 vulnerabilities.
+
+---
+
+## 2026-07-18 — Follow-up on architecture mapping agents
+
+**User:** Perform any necessary follow-up actions in response to the subagent completion.
+**AI:** Reviewed [Map project architecture](6d7fcde4-293a-45ac-973d-9b800234db39) drift notes. Opening-bid contract was already restored to startPrice+1. Corrected remaining docs drift: plan/summery no longer claim a virtualized history table (scrollable DataTable only).
+
+---
