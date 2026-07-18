@@ -1,41 +1,37 @@
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { featureFlags } from "../../config/features";
-import { applySnipeExtensionPolicy } from "../snipe/SnipeExtensionPolicy";
 import type { DisplayTimingRegistry } from "./DisplayTiming";
 
-/** Applies snipe display-timing policy for an active auction bid. Returns whether timing changed. */
+/**
+ * The backend now owns the actual anti-snipe extension math (see
+ * `backend/server.js`'s `applySnipeExtension`, which stacks +15s on
+ * `auction.endsAt` for accepted bids in the closing window). The client's
+ * only remaining job on an applied bid is to notice that the authoritative
+ * `endsAt` increased and set a sticky `snipeExtended` flag for the
+ * "Time extended" tag — no client-side arithmetic on the deadline itself,
+ * which is what would risk double-extending on top of the server's own
+ * stacked extension.
+ */
 export function applySnipeDisplayTimingOnBid(params: {
   auctionId: string;
-  serverEndsAt: number;
+  previousEndsAt: number;
+  nextEndsAt: number;
   auctionStatus: AuctionStatus;
-  bidTimestamp: number;
   timingRegistry: DisplayTimingRegistry;
 }): boolean {
-  const {
-    auctionId,
-    serverEndsAt,
-    auctionStatus,
-    bidTimestamp,
-    timingRegistry,
-  } = params;
+  const { auctionId, previousEndsAt, nextEndsAt, auctionStatus, timingRegistry } =
+    params;
 
   if (!featureFlags.snipeProtection || auctionStatus !== AuctionStatus.Active) {
     return false;
   }
-
-  const previous = timingRegistry.get(auctionId, serverEndsAt);
-  const beforeEndsAt = previous.displayEndsAt;
-
-  const snipe = applySnipeExtensionPolicy(
-    serverEndsAt,
-    bidTimestamp,
-    previous.displayEndsAt,
-  );
+  if (nextEndsAt <= previousEndsAt) {
+    return false;
+  }
 
   timingRegistry.set(auctionId, {
-    displayEndsAt: snipe.displayEndsAt,
-    snipeExtended: previous.snipeExtended || snipe.extended,
+    displayEndsAt: nextEndsAt,
+    snipeExtended: true,
   });
-
-  return beforeEndsAt !== snipe.displayEndsAt;
+  return true;
 }

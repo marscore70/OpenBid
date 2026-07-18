@@ -4,6 +4,15 @@ const INVALID_AMOUNT = "Enter a valid bid amount.";
 const SCIENTIFIC_NOTATION_MESSAGE = "Scientific notation is not allowed.";
 const SCIENTIFIC_NOTATION = /[eE]/;
 const PLAIN_DECIMAL = /^\d+(\.\d+)?$/;
+const NON_DIGIT = /\D/g;
+
+/** Digit budget for live input — matches `Number.MAX_SAFE_INTEGER` length. */
+export const MAX_BID_AMOUNT_DIGITS = String(Number.MAX_SAFE_INTEGER).length;
+
+/** Live-input helper: digits only, capped length; does not enforce min bid. */
+export function constrainBidAmountInput(raw: string): string {
+  return raw.replace(NON_DIGIT, "").slice(0, MAX_BID_AMOUNT_DIGITS);
+}
 
 //?  string normalization and validation
 const bidAmountFromStringSchema = z
@@ -57,6 +66,31 @@ export function validateBidAmount(
   startPrice: number,
 ): number {
   return bidAmountSchema(currentBid, startPrice).parse(amount);
+}
+
+/** Preemptive UI gate: true only when Zod would accept the amount. */
+export function isBidAmountValid(
+  amount: unknown,
+  currentBid: number,
+  startPrice: number,
+): boolean {
+  return bidAmountSchema(currentBid, startPrice).safeParse(amount).success;
+}
+
+/** Preemptive UI message; empty string when the amount is valid or blank. */
+export function getBidAmountErrorMessage(
+  amount: unknown,
+  currentBid: number,
+  startPrice: number,
+): string {
+  if (amount === null || amount === undefined || amount === "") {
+    return "";
+  }
+  const result = bidAmountSchema(currentBid, startPrice).safeParse(amount);
+  if (result.success) {
+    return "";
+  }
+  return result.error.issues[0]?.message ?? INVALID_AMOUNT;
 }
 
 export function getBidValidationMessage(error: unknown): string {

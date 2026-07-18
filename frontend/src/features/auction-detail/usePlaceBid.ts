@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HttpError } from "../../infrastructure/api/httpClient";
+import { toSafeErrorMessage } from "../../shared/errors/toSafeErrorMessage";
 import {
   bidService,
   isPlaceBidHttpError,
@@ -134,7 +135,7 @@ export function getBidErrorMessage(error: unknown): string {
       }
       return body.error;
     }
-    return body.error ?? error.message;
+    return body.error ?? toSafeErrorMessage(error);
   }
   if (error instanceof Error) {
     return error.message;

@@ -9,6 +9,8 @@ import type { AuctionDetail } from "../../../src/shared/types/AuctionDetail";
 import type { AuctionSummary } from "../../../src/shared/types/AuctionSummary";
 import { AuctionStatus } from "../../../src/shared/types/AuctionStatus";
 
+const baseEndsAt = Date.now() + 60_000;
+
 const baseAuction: AuctionSummary = {
   id: "a1",
   title: "Test",
@@ -16,7 +18,7 @@ const baseAuction: AuctionSummary = {
   startPrice: 100,
   currentBid: 100,
   currentBidder: null,
-  endsAt: Date.now() + 60_000,
+  endsAt: baseEndsAt,
   status: AuctionStatus.Active,
   bidCount: 0,
 };
@@ -28,7 +30,7 @@ const baseDetail: AuctionDetail = {
   startPrice: 100,
   currentBid: 100,
   currentBidder: null,
-  endsAt: Date.now() + 60_000,
+  endsAt: baseEndsAt,
   status: AuctionStatus.Active,
   bidHistory: [],
 };
@@ -45,6 +47,7 @@ describe("merge auction state", () => {
         previousBid: 100,
         timestamp: Date.now(),
         bid_id: "bid_x",
+        endsAt: baseEndsAt,
       },
       timing,
     );
@@ -64,6 +67,7 @@ describe("merge auction state", () => {
         previousBid: 90,
         timestamp: Date.now(),
         bid_id: "bid_stale",
+        endsAt: baseEndsAt,
       },
       timing,
     );
@@ -82,6 +86,7 @@ describe("merge auction state", () => {
         previousBid: 100,
         timestamp: Date.now(),
         bid_id: "bid_other",
+        endsAt: baseEndsAt,
       },
       timing,
     );
@@ -100,6 +105,7 @@ describe("merge auction state", () => {
         previousBid: 100,
         timestamp: Date.now(),
         bid_id: "bid_d1",
+        endsAt: baseEndsAt,
       },
       timing,
     );
@@ -116,12 +122,110 @@ describe("merge auction state", () => {
         previousBid: 100,
         timestamp: Date.now(),
         bid_id: "bid_d2",
+        endsAt: baseEndsAt,
       },
       timing,
     );
     expect(stale.applied).toBe(false);
     expect(stale.auction.currentBid).toBe(120);
     expect(stale.auction.bidHistory).toHaveLength(1);
+  });
+
+  it("adopts the authoritative endsAt and flags snipeExtended when an applied bid extends the deadline", () => {
+    const timing = createDisplayTimingRegistry();
+    const extendedEndsAt = baseEndsAt + 15_000;
+    const result = mergeNewBidIntoSummary(
+      baseAuction,
+      {
+        auctionId: "a1",
+        bidder: "Ron",
+        amount: 110,
+        previousBid: 100,
+        timestamp: Date.now(),
+        bid_id: "bid_snipe_1",
+        endsAt: extendedEndsAt,
+      },
+      timing,
+    );
+
+    expect(result.auction.endsAt).toBe(extendedEndsAt);
+    expect(timing.get("a1", baseEndsAt).snipeExtended).toBe(true);
+    expect(timing.get("a1", baseEndsAt).displayEndsAt).toBe(extendedEndsAt);
+  });
+
+  it("stacks a second authoritative extension from a later accepted bid", () => {
+    const timing = createDisplayTimingRegistry();
+    const firstExtension = baseEndsAt + 15_000;
+    const secondExtension = firstExtension + 15_000;
+
+    const first = mergeNewBidIntoSummary(
+      baseAuction,
+      {
+        auctionId: "a1",
+        bidder: "Ron",
+        amount: 110,
+        previousBid: 100,
+        timestamp: Date.now(),
+        bid_id: "bid_snipe_1",
+        endsAt: firstExtension,
+      },
+      timing,
+    );
+
+    const second = mergeNewBidIntoSummary(
+      first.auction,
+      {
+        auctionId: "a1",
+        bidder: "Noa",
+        amount: 120,
+        previousBid: 110,
+        timestamp: Date.now(),
+        bid_id: "bid_snipe_2",
+        endsAt: secondExtension,
+      },
+      timing,
+    );
+
+    expect(second.auction.endsAt).toBe(secondExtension);
+  });
+
+  it("cannot roll the deadline backward from a stale/out-of-order event (amount not ahead is a no-op)", () => {
+    const timing = createDisplayTimingRegistry();
+    const extendedEndsAt = baseEndsAt + 15_000;
+    const extended = mergeNewBidIntoSummary(
+      baseAuction,
+      {
+        auctionId: "a1",
+        bidder: "Ron",
+        amount: 150,
+        previousBid: 100,
+        timestamp: Date.now(),
+        bid_id: "bid_ahead",
+        endsAt: extendedEndsAt,
+      },
+      timing,
+    );
+
+    // Out-of-order event: lower amount than current, but claims an even
+    // later endsAt. Must be rejected wholesale (applied: false) and must not
+    // move endsAt at all, let alone "double extend" it.
+    const stale = mergeNewBidIntoSummary(
+      extended.auction,
+      {
+        auctionId: "a1",
+        bidder: "Bot",
+        amount: 120,
+        previousBid: 100,
+        timestamp: Date.now(),
+        bid_id: "bid_stale_out_of_order",
+        endsAt: extendedEndsAt + 999_999,
+      },
+      timing,
+    );
+
+    expect(stale.applied).toBe(false);
+    expect(stale.auction.endsAt).toBe(extendedEndsAt);
+    expect(stale.auction.currentBid).toBe(150);
   });
 
   it("merges auction_ended into ended summary with winner", () => {

@@ -2,7 +2,10 @@ import { atom } from "jotai";
 import { atomFamily } from "jotai-family";
 import { auctionsService } from "../infrastructure/api/auctionsService";
 import type { AuctionDetail } from "../shared/types/AuctionDetail";
+import { mergeFetchedAuctionDetail } from "../domain/auction/mergeFetchedAuctionSnapshot";
 import { logger } from "../shared/logging/logger";
+import { toSafeErrorMessage } from "../shared/errors/toSafeErrorMessage";
+import { createRequestGenerationGuard } from "./RequestGenerationGuard";
 import { auctionStore } from "./auctionStore";
 import { LoadStatus } from "./LoadStatus";
 
@@ -56,8 +59,12 @@ export function patchAuctionDetail(
   writeAuctionDetail(auctionId, patch(readAuctionDetail(auctionId)));
 }
 
+/** Keyed per auction id so concurrent fetches for different auctions never block each other. */
+const detailGenerationGuard = createRequestGenerationGuard<string>();
+
 export async function fetchAuctionDetail(auctionId: string): Promise<void> {
   trackAuctionDetailId(auctionId);
+  const generation = detailGenerationGuard.next(auctionId);
   const current = readAuctionDetail(auctionId);
   writeAuctionDetail(auctionId, {
     ...current,
@@ -66,22 +73,37 @@ export async function fetchAuctionDetail(auctionId: string): Promise<void> {
   });
 
   try {
-    const data = await auctionsService.getById(auctionId);
+    const fetched = await auctionsService.getById(auctionId);
+    if (!detailGenerationGuard.isLatest(auctionId, generation)) {
+      logger.debug("Discarding superseded auction detail response", {
+        auctionId,
+      });
+      return;
+    }
+    const latest = readAuctionDetail(auctionId);
     writeAuctionDetail(auctionId, {
-      data,
+      data: mergeFetchedAuctionDetail(latest.data, fetched),
       status: LoadStatus.Success,
       errorMessage: "",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load auction";
+    if (!detailGenerationGuard.isLatest(auctionId, generation)) {
+      logger.debug("Discarding superseded auction detail error", {
+        auctionId,
+      });
+      return;
+    }
+    const message = toSafeErrorMessage(error);
     logger.error("Failed to fetch auction detail", {
       auctionId,
       error: String(error),
     });
+    // Keep the already-loaded auction visible on a background refetch
+    // failure instead of replacing it with a full-page error.
+    const latest = readAuctionDetail(auctionId);
     writeAuctionDetail(auctionId, {
-      data: current.data,
-      status: LoadStatus.Error,
+      data: latest.data,
+      status: latest.data ? LoadStatus.Success : LoadStatus.Error,
       errorMessage: message,
     });
   }

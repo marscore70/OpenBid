@@ -31,6 +31,12 @@ export function useAuctionDetail(id: string | undefined) {
       state.status === LoadStatus.Error
         ? new Error(state.errorMessage)
         : null,
+    // Non-destructive: a background refetch failure keeps `status` at
+    // Success (and `data` intact) but still surfaces `errorMessage`.
+    backgroundErrorMessage:
+      state.status === LoadStatus.Success && state.data
+        ? state.errorMessage
+        : "",
     refetch: () => {
       if (id) {
         return fetchAuctionDetail(id);

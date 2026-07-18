@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai";
 import type { DisplayTiming } from "../../domain/auction/DisplayTiming";
 import { outbidNotifier } from "../../features/notifications/outbidNotifier";
+import { bidStreamService } from "../../infrastructure/sse/bidStreamService";
 import type { SseConnectionStatus } from "../../shared/types/SseConnectionStatus";
 import {
   clearDisplayTiming,
@@ -15,6 +16,8 @@ export type BidStreamApi = {
   getDisplayTiming: (auctionId: string, serverEndsAt: number) => DisplayTiming;
   clearDisplayTiming: (auctionId: string) => void;
   enableNotificationSound: () => void;
+  /** Manually restarts the SSE connection after a permanent give-up (`Disconnected` with no scheduled retry). */
+  retryConnection: () => void;
 };
 
 /**
@@ -31,5 +34,6 @@ export function useBidStream(): BidStreamApi {
     getDisplayTiming,
     clearDisplayTiming,
     enableNotificationSound: outbidNotifier.enableSound,
+    retryConnection: () => bidStreamService.start(),
   };
 }

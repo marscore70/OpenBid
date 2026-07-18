@@ -18,6 +18,7 @@ Avoid:
 - unnecessary state
 - unnecessary effects
 - prop drilling when avoidable
+- global styles
 
 Components:
 

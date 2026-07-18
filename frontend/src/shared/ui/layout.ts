@@ -1,5 +1,5 @@
-import styled, { keyframes } from 'styled-components';
-import { AuctionVisualStatus } from '../../shared/types/AuctionVisualStatus';
+import styled, { keyframes } from "styled-components";
+import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -7,12 +7,16 @@ const pulse = keyframes`
 `;
 
 export const PageShell = styled.div`
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: #f8fafc;
   color: #0f172a;
 `;
 
 export const AppHeader = styled.header`
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -22,22 +26,39 @@ export const AppHeader = styled.header`
 `;
 
 export const MainLayout = styled.div`
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: minmax(0, 1fr) 280px;
   gap: 1rem;
   padding: 1rem 1.5rem;
+  align-items: stretch;
+  overflow: hidden;
 
   @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
   }
 `;
 
 export const ContentColumn = styled.main`
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  > * {
+    flex: 1;
+    min-height: 0;
+  }
 `;
 
 export const SidebarColumn = styled.aside`
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  align-self: stretch;
 `;
 
 export const CatalogGrid = styled.div`
@@ -51,12 +72,12 @@ export const StatusStrip = styled.div<{ $status: AuctionVisualStatus }>`
   border-radius: 4px 4px 0 0;
   background: ${({ $status }) =>
     $status === AuctionVisualStatus.Active
-      ? '#22c55e'
+      ? "#22c55e"
       : $status === AuctionVisualStatus.Urgent
-        ? '#ef4444'
-        : '#94a3b8'};
+        ? "#ef4444"
+        : "#94a3b8"};
   animation: ${({ $status }) =>
-    $status === AuctionVisualStatus.Urgent ? pulse : 'none'}
+      $status === AuctionVisualStatus.Urgent ? pulse : "none"}
     1s ease-in-out infinite;
 `;
 

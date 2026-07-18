@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Message } from "primereact/message";
 import { Tag } from "primereact/tag";
@@ -13,10 +13,25 @@ import { auctionVisualStatus } from "../../domain/auction/auctionVisualStatus";
 import { createDefaultDisplayTiming } from "../../domain/auction/DisplayTiming";
 import { AuctionStatus } from "../../shared/types/AuctionStatus";
 import { AuctionVisualStatus } from "../../shared/types/AuctionVisualStatus";
+import { featureFlags } from "../../config/features";
+import {
+  AuctionEmoji,
+  AuctionHero,
+  DetailBackLink,
+  DetailChartSection,
+  DetailColumn,
+  DetailHistorySection,
+  DetailLayout,
+  DetailPage,
+  DetailSection,
+  HeroMeta,
+  StatusRow,
+} from "./auctionDetailLayout";
 
 export function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error } = useAuctionDetail(id);
+  const { data, isLoading, isError, error, backgroundErrorMessage } =
+    useAuctionDetail(id);
   const { getDisplayTiming, timingVersion } = useBidStream();
   void timingVersion;
 
@@ -34,64 +49,97 @@ export function AuctionDetailPage() {
     : AuctionVisualStatus.Active;
 
   if (isLoading) {
-    return <ProgressSpinner aria-label="Loading auction" />;
+    return (
+      <DetailPage>
+        <DetailBackLink to="/">← Back to catalog</DetailBackLink>
+        <ProgressSpinner aria-label="Loading auction" />
+      </DetailPage>
+    );
   }
 
   if (isError || !data) {
     return (
-      <Message
-        severity="error"
-        text={error instanceof Error ? error.message : "Auction not found"}
-      />
+      <DetailPage>
+        <DetailBackLink to="/">← Back to catalog</DetailBackLink>
+        <Message
+          severity="error"
+          text={error instanceof Error ? error.message : "Auction not found"}
+        />
+      </DetailPage>
     );
   }
 
   const biddingDisabled = data.status === AuctionStatus.Ended;
 
   return (
-    <div>
-      <Link to="/">← Back to catalog</Link>
-      <div style={{ fontSize: "3rem", margin: "0.5rem 0" }}>{data.image}</div>
-      <h1>{data.title}</h1>
-      <p>
-        Current bid: <strong>${data.currentBid}</strong> — Leader:{" "}
-        {data.currentBidder ?? "—"}
-      </p>
-      {data.status === AuctionStatus.Active ? (
-        <Tag
-          severity={
-            visual === AuctionVisualStatus.Urgent ? "danger" : "success"
-          }
-          value={`${countdown} remaining`}
-        />
-      ) : (
-        <Message
-          severity="success"
-          text={`Auction ended. Winner: ${data.currentBidder ?? "None"} at $${data.currentBid}`}
-        />
+    <DetailPage>
+      <DetailBackLink to="/">← Back to catalog</DetailBackLink>
+      {backgroundErrorMessage && (
+        <Message severity="warn" text={backgroundErrorMessage} />
       )}
-      {timing.snipeExtended && data.status === AuctionStatus.Active && (
-        <Tag
-          severity="warning"
-          value="Snipe protection: time extended (display only)"
-        />
-      )}
+      <DetailLayout>
+        <DetailColumn>
+          <AuctionHero>
+            <AuctionEmoji>{data.image}</AuctionEmoji>
+            <HeroMeta>
+              <h1>{data.title}</h1>
+              <p>
+                Current bid: <strong>${data.currentBid}</strong> — Leader:{" "}
+                {data.currentBidder ?? "—"}
+              </p>
+              <StatusRow>
+                {data.status === AuctionStatus.Active ? (
+                  <Tag
+                    severity={
+                      visual === AuctionVisualStatus.Urgent
+                        ? "danger"
+                        : "success"
+                    }
+                    value={`${countdown} remaining`}
+                  />
+                ) : (
+                  <Message
+                    severity="success"
+                    text={`Auction ended. Winner: ${data.currentBidder ?? "None"} at $${data.currentBid}`}
+                  />
+                )}
+                {timing.snipeExtended &&
+                  data.status === AuctionStatus.Active && (
+                    <Tag
+                      severity="warning"
+                      value="Snipe protection: time extended"
+                    />
+                  )}
+              </StatusRow>
+            </HeroMeta>
+          </AuctionHero>
 
-      <section style={{ marginTop: "1.5rem" }}>
-        <h2>Place a bid</h2>
-        <BidForm
-          auctionId={data.id}
-          currentBid={data.currentBid}
-          startPrice={data.startPrice}
-          disabled={biddingDisabled}
-        />
-      </section>
+          <DetailSection>
+            <h2>Place a bid</h2>
+            <BidForm
+              key={data.id}
+              auctionId={data.id}
+              currentBid={data.currentBid}
+              startPrice={data.startPrice}
+              disabled={biddingDisabled}
+            />
+          </DetailSection>
 
-      <section style={{ marginTop: "1.5rem" }}>
-        <h2>Bid history</h2>
-        <BidHistoryTable history={data.bidHistory} />
-        <BidHistoryChart history={data.bidHistory} />
-      </section>
-    </div>
+          {featureFlags.bidHistoryChart && (
+            <DetailChartSection>
+              <h2>Bid history chart</h2>
+              <BidHistoryChart history={data.bidHistory} />
+            </DetailChartSection>
+          )}
+        </DetailColumn>
+
+        <DetailColumn>
+          <DetailHistorySection>
+            <h2>Bid history</h2>
+            <BidHistoryTable history={data.bidHistory} />
+          </DetailHistorySection>
+        </DetailColumn>
+      </DetailLayout>
+    </DetailPage>
   );
 }

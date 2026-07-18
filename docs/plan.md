@@ -49,7 +49,7 @@ OpenBid/
 
 ### BONUS (implemented behind feature flags; MVP ships first)
 
-- [x] **Bid snipe protection** — client-only +15s display when bid arrives with &lt;10s left (server `endsAt` unchanged)
+- [x] **Bid snipe protection** — backend-authoritative `endsAt += 15_000` (stacking) for accepted bids (user + bot) in the final 10s; see §6 "one-time exception"
 - [x] **Bid history chart** — PrimeReact Chart from merged history
 - [x] **Outbid notifications** — Toast + optional sound after user gesture
 - [x] **My Bids tracker** — sidebar: winning / outbid / won / lost from local username
@@ -88,7 +88,7 @@ SSE disconnect ──► reconnect ──► refetch list + tracked detail ids
 
 ## 6. Backend limitations & client workarounds
 
-**We cannot change the backend.** All mitigations are client-side.
+**The backend is otherwise off-limits** (workspace policy: frontend-only). All mitigations below are client-side, **except** the authoritative anti-snipe extension, which required a **one-time, user-granted exception** to modify only `backend/server.js` — see "Bonus vs server" below. That exception is scoped to this single feature; the "never touch the backend" rule reverts afterward for every other change.
 
 ### Documented quirks (QUIRK 1–7)
 
@@ -115,7 +115,25 @@ SSE disconnect ──► reconnect ──► refetch list + tracked detail ids
 
 ### Bonus vs server
 
-**Snipe protection** only extends **display** time (`displayEndsAt`). When server sends `auction_ended` or 409, **server wins** — show ended even if local timer was extended.
+**Authoritative anti-snipe — implemented 2026-07-18.**
+
+> **One-time exception (used for this turn):** the user explicitly granted one-time permission to modify **only** `backend/server.js` for this single feature, superseding the normal "never touch the backend" rule for this change alone. The rule reverts after this feature; no other backend file was touched.
+
+Implementation (`backend/server.js`):
+
+- **Lines 83–99** — `SNIPE_WINDOW_MS = 10_000` / `SNIPE_EXTENSION_MS = 15_000` constants and the pure helper `applySnipeExtension(auction, bidTimestamp)`: if `0 < auction.endsAt - bidTimestamp < SNIPE_WINDOW_MS`, mutates `auction.endsAt += SNIPE_EXTENSION_MS`. Reusing `auction.endsAt` (already reflecting any prior extension) on every call is what makes repeated accepted bids in the closing window **stack** extensions for free — no separate "extension count" state needed.
+- **Lines 176–195** (bot interval) and **lines 290–316** (`POST /api/bid`) — both call sites now capture a single `const bidTimestamp = Date.now()` right after the bid is accepted, reused for the `bidHistory` timestamp, the `applySnipeExtension` check, the `bid_id`, and the `new_bid` broadcast `timestamp` (previously multiple independent `Date.now()` calls). Both call `applySnipeExtension(auction, bidTimestamp)` immediately after the mutation and before `broadcast("new_bid", …)`, and both now add `endsAt: auction.endsAt` to that broadcast payload — the only contract change (no new endpoint/event/dependency; GET endpoints already returned `endsAt`; the POST 200 body is intentionally left unchanged, since the placing client reconciles via its own SSE subscription and the existing post-success `fetchAuctionDetail` GET).
+- The existing 1s end-sweep (`Date.now() >= a.endsAt`) and the `POST /api/bid` 409 check read the same mutated `auction.endsAt` field, so both automatically observe an extension with no changes needed — `endsAt` is now truly authoritative end-to-end.
+
+Frontend adaptation (`frontend/src`):
+
+- `NewBidEvent` gained a required `endsAt: number`. The SSE parser boundary (`parseSseMessage.ts`) now runs every `new_bid` payload through a Zod schema (`sseEventSchemas.ts`, mirroring the existing `auctionSchemas.ts` REST pattern) and drops a malformed event (missing/non-finite `endsAt`, `bid_id`, etc.) instead of adopting an unsafe value — closing the specific gap called out in problems.md #1 for this field.
+- `mergeNewBidIntoSummary`/`mergeNewBidIntoDetail` adopt `Math.max(auction.endsAt, event.endsAt)` as the merged `endsAt` on every applied bid (the `Math.max` is a defensive backstop; the real ordering guarantee is the existing `event.amount > auction.currentBid` gate, which already makes a stale/out-of-order event with a smaller amount a no-op that cannot touch `endsAt` at all).
+- The additive client-side math (`applySnipeExtensionPolicy` in `SnipeExtensionPolicy.ts`) was deleted — the client no longer performs `+= 15_000` anywhere, eliminating the double-extension risk. `applySnipeDisplayTimingOnBid.ts` was simplified to a pure comparison: if the merged `endsAt` increased versus what was previously known, set a sticky `snipeExtended` boolean on the existing `DisplayTimingRegistry` entry (for the "Time extended" tag) and mirror `displayEndsAt` to the new authoritative value. `resolveDisplayEndsAt`'s `Math.max(serverEndsAt, displayEndsAt)` is therefore a harmless no-op in normal operation — `AuctionCard.tsx`/`useCountdownTick.ts` needed no changes.
+- `mergeFetchedAuctionSnapshot.ts`'s reset detector no longer keys off `endsAt` (a legitimate extension now changes it on the very same auction/epoch). The reset signal is a fetched `currentBid` that has regressed all the way back to `startPrice` (only possible right after a genuine backend restart — normal bidding is monotonic and a stale/delayed GET describing a real earlier state, still above `startPrice`, is not a restart and must not roll back the cache). In the non-reset branch, `endsAt` is merged with `Math.max(cached.endsAt, fetched.endsAt)` so a stale GET can never roll the deadline backward, while a fetch that raced ahead of the client's own SSE (carrying a newer extension) is still adopted.
+- "(display only)" / "(visual only)" copy was removed (`AuctionDetailPage.tsx` now reads "Snipe protection: time extended"; `AuctionCard.tsx` already said "Time extended").
+
+See `docs/problems.md` #15 for the full before/after write-up, and §11 for the new/updated tests.
 
 ## 7. Feature design
 
@@ -143,7 +161,7 @@ Controlled by [`frontend/src/config/features.ts`](../frontend/src/config/feature
 
 | Flag | Module |
 |------|--------|
-| `snipeProtection` | `domain/snipe/SnipeExtensionPolicy.ts` |
+| `snipeProtection` | `domain/snipe/SnipeExtensionPolicy.ts` (display resolve) + `domain/auction/applySnipeDisplayTimingOnBid.ts` (sticky "Time extended" flag) + `backend/server.js` `applySnipeExtension` (authoritative extension) |
 | `bidHistoryChart` | `features/auction-detail/BidHistoryChart.tsx` |
 | `outbidNotifications` | `features/notifications/outbidNotifier.ts` |
 | `myBidsTracker` | `features/my-bids/` |
@@ -188,7 +206,7 @@ Vitest `include`: `tests/**/*.test.ts`. Integration tests use fake SSE/HTTP wher
 
 **Do:** domain-first logic, quirk mapping to tests, PrimeReact, phased MVP then bonuses, PROMPTS.md.
 
-**Avoid:** backend edits, trusting user `previousBid` on SSE, POST 200 as sole truth, full list re-render per event, innerHTML for API data, aggressive fetch timeouts, polling `/api/stream`, pretending snipe changes server `endsAt`.
+**Avoid:** backend edits outside the one-time, feature-scoped anti-snipe exception (§6), trusting user `previousBid` on SSE, POST 200 as sole truth, full list re-render per event, innerHTML for API data, aggressive fetch timeouts, polling `/api/stream`, re-deriving the deadline on the client instead of adopting the authoritative `endsAt`.
 
 ## 13. Phased delivery
 
@@ -199,7 +217,7 @@ Vitest `include`: `tests/**/*.test.ts`. Integration tests use fake SSE/HTTP wher
 | 2 | Catalog + countdown |
 | 3 | SSE + live updates |
 | 4 | Detail + bid form |
-| 5 | Reconnect + reconciliation |
+| 5 | Reconnect + reconciliation — **done**: no false Connected before `open`; bounded reconnect give-up; request-generation guard + monotonic fetch-commit merge (list + detail) fix SSE-vs-refetch races; My Bids `Stale` status for mismatched stored bids |
 | 6 | Bonuses (flags on) |
 | 7 | README, PROMPTS.md, polish |
 
@@ -210,7 +228,7 @@ All MUST checklist items checked; ≥5 tests green; manual verification of 45s S
 ## 14. Submission artifacts
 
 - Source under `frontend/`
-- Unchanged `backend/server.js`
+- `backend/server.js` — unchanged except the one-time, user-approved anti-snipe exception (§6); every other backend file remains untouched
 - `README.md`, `frontend/PROMPTS.md`, test files, `frontend/package.json`
 
 ## 15. Decision log
@@ -224,3 +242,9 @@ All MUST checklist items checked; ≥5 tests green; manual verification of 45s S
 | 2026-07-17 | Removed unused Vite template assets (`src/assets/*`, `public/icons.svg`, oxlint stub); kept `public/favicon.svg` |
 | 2026-07-17 | Status/event values as const maps (no magic strings at call sites); Zod for bid/bidder parse+sanitize (`zod@3.25.76`); domain helpers return a single type |
 | 2026-07-17 | Outbid toast only after merge applies amount; `enableSound` reuses/resumes one `AudioContext` |
+| 2026-07-17 | Phase 5 hardening: `BidStreamService` emits `Connected` only from the real `open` handler (fixes cold-start false reconcile) and gives up after `MAX_RECONNECT_ATTEMPTS`; `fetchAuctionsList`/`fetchAuctionDetail` use a per-resource `RequestGenerationGuard` plus a monotonic `mergeFetchedAuctionSummary`/`mergeFetchedAuctionDetail` commit (epoch-aware, bid-history union) to fix SSE-vs-refetch races; background refetch failures keep existing catalog/detail data with an inline warning instead of a full-page error |
+| 2026-07-17 | My Bids: `MyBidStatus.Stale` replaces the unused `Active`; `deriveMyBidStatus` is a pure single-return-type rule (absent-from-`Success`-list or amount-behind-while-active → Stale; Ended never Stale); no automatic delete of stale stored bids; `collectMyBidEntries` inverted to a single pass over `loadMyBids()` against one auction `Map`; `loadMyBids` Zod-validates each entry |
+| 2026-07-17 | Review remediation: `auctionsService` REST responses now Zod-validated (`auctionSchemas.ts`) before merge; `bidCount` merge tied to the same `bidAdvanced` branch as `currentBid`; `deriveMyBidStatus` tie edge resolves to Outbid; `BidStreamService` emits `Reconnecting` from one place; `axios` pinned to `1.18.1` (`npm audit` clean); `ConnectionStatusBadge` gained an "Offline"/"Retry" recovery affordance (`useBidStream().retryConnection`); `toSafeErrorMessage` strips internal method/path from `HttpError` text shown in the catalog/detail/bid-fallback UI |
+| 2026-07-18 | My Bids server-reset clear: after a successful validated list fetch (raw GET payload, before monotonic merge), `clearMyBids()` runs iff ≥1 stored bid, every `auctionId` exists in that list, and every stored amount is strictly `>` that auction’s server `currentBid`; missing ids keep Stale behavior; empty storage is a no-write. Authoritative stackable anti-snipe remains a backend `endsAt += 15_000` rule (user+bot, remaining `(0, 10_000)`) carried on existing `new_bid`/POST payloads — **not implemented** (workspace blocks `backend/`); UI keeps “(display only)” copy |
+| 2026-07-18 | Architecture-only pass (no code changed): finalized the authoritative anti-snipe design under a **one-time, user-granted exception** to touch only `backend/server.js` (one shared helper, two call sites, `endsAt` added to `new_bid`); finalized the matching frontend adaptation (`NewBidEvent.endsAt`, drop additive client math, fix the `mergeFetchedAuctionSnapshot` epoch/reset detector so a legitimate extension is never mistaken for a server restart); verified `shouldClearMyBidsAfterListReconcile` already implements the requested My Bids clear-all semantics exactly as specified (no changes needed). Full write-up in `docs/problems.md` #15. Implementation deferred to a follow-up turn. |
+| 2026-07-18 | **Authoritative anti-snipe implemented** under the one-time exception: `backend/server.js` gained `SNIPE_WINDOW_MS`/`SNIPE_EXTENSION_MS` constants and `applySnipeExtension(auction, bidTimestamp)` (lines 83–99), wired into the bot interval (lines 176–195) and `POST /api/bid` (lines 290–316) with a single `bidTimestamp` reused for history/extension/bid_id/broadcast, plus `endsAt: auction.endsAt` added to both `new_bid` broadcasts — no other backend file touched. Frontend: `NewBidEvent.endsAt` (required); new Zod boundary `sseEventSchemas.ts` used by `parseSseMessage.ts` rejects a malformed `new_bid` (bad `endsAt`/`bid_id`/etc.) instead of adopting an unsafe value; `mergeNewBid*` adopt `Math.max(auction.endsAt, event.endsAt)`; `SnipeExtensionPolicy.ts`'s additive `+= 15_000` math deleted; `applySnipeDisplayTimingOnBid.ts` simplified to a pure "did endsAt increase" comparison that sets a sticky `snipeExtended` flag; `mergeFetchedAuctionSnapshot.ts`'s reset signal changed from "any `endsAt` change" to "fetched `currentBid` regressed to `startPrice`" (a plain `currentBid` decrease alone is **not** safe — it also occurs on an ordinary stale-GET-vs-SSE race, which the existing monotonic merge already protects and whose tests this change had to keep green), with `endsAt` merged via `Math.max` in the non-reset branch; removed "(display only)" copy. New/updated tests: authoritative-extension-accepted, stale-GET-cannot-roll-back, backend-reset-accepted, and duplicate/out-of-order-cannot-double-extend, plus a new `parseSseMessage.test.ts` for the SSE Zod boundary. `npx tsc -b` and `npm test` both green (147 tests, 26 files). |

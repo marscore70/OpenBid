@@ -23,7 +23,7 @@ import { auctionStore } from "../state/auctionStore";
 
 function AppShell() {
   const toastRef = useRef<Toast>(null);
-  const { connectionStatus } = useBidStream();
+  const { connectionStatus, retryConnection } = useBidStream();
 
   useEffect(() => {
     return outbidNotifier.subscribe((detail) => {
@@ -46,7 +46,10 @@ function AppShell() {
             Live garage auctions
           </span>
         </div>
-        <ConnectionStatusBadge status={connectionStatus} />
+        <ConnectionStatusBadge
+          status={connectionStatus}
+          onRetry={retryConnection}
+        />
       </AppHeader>
       <MainLayout>
         <ContentColumn>

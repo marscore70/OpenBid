@@ -79,6 +79,25 @@ let bidSequence = 0;
 // QUIRK 5: Server sends "heartbeat" events every 15s — client must ignore these
 // QUIRK 6: Every ~45s the SSE connection drops and must be re-established
 // QUIRK 7: GET /api/auctions has a 30% chance of 500ms extra latency
+
+// ============ ANTI-SNIPE (authoritative, server-owned) ============
+// SNIPE_WINDOW_MS: an accepted bid inside this many ms of the current
+// deadline counts as a snipe attempt.
+// SNIPE_EXTENSION_MS: added to auction.endsAt when a snipe is detected.
+const SNIPE_WINDOW_MS = 10_000;
+const SNIPE_EXTENSION_MS = 15_000;
+
+// Mutates auction.endsAt in place when bidTimestamp lands inside the final
+// SNIPE_WINDOW_MS of the current deadline. Reusing auction.endsAt (which
+// already reflects any prior extension) is what makes repeated accepted
+// bids in the closing window stack extensions for free.
+function applySnipeExtension(auction, bidTimestamp) {
+  const remaining = auction.endsAt - bidTimestamp;
+  if (remaining > 0 && remaining < SNIPE_WINDOW_MS) {
+    auction.endsAt += SNIPE_EXTENSION_MS;
+  }
+}
+
 function broadcast(event, data) {
   const id = ++bidSequence;
   const msg = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -156,20 +175,23 @@ setInterval(
     const botName = botNames[Math.floor(Math.random() * botNames.length)];
     const increment = [5, 10, 15, 20, 25][Math.floor(Math.random() * 5)];
     const newBid = auction.currentBid + increment;
+    const bidTimestamp = Date.now();
     auction.currentBid = newBid;
     auction.currentBidder = botName;
     auction.bidHistory.push({
       bidder: botName,
       amount: newBid,
-      timestamp: Date.now(),
+      timestamp: bidTimestamp,
     });
+    applySnipeExtension(auction, bidTimestamp);
     broadcast("new_bid", {
       auctionId: auction.id,
       bidder: botName,
       amount: newBid,
       previousBid: newBid - increment,
-      timestamp: Date.now(),
-      bid_id: `bid_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      timestamp: bidTimestamp,
+      bid_id: `bid_${bidTimestamp}_${Math.random().toString(36).substr(2, 5)}`,
+      endsAt: auction.endsAt,
     });
   },
   8000 + Math.random() * 7000,
@@ -276,18 +298,21 @@ const server = http.createServer((req, res) => {
 
             return;
           }
-          const bid_id = `bid_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          const bidTimestamp = Date.now();
+          const bid_id = `bid_${bidTimestamp}_${Math.random().toString(36).substr(2, 5)}`;
 
           auction.currentBid = amount;
           auction.currentBidder = bidder;
-          auction.bidHistory.push({ bidder, amount, timestamp: Date.now() });
+          auction.bidHistory.push({ bidder, amount, timestamp: bidTimestamp });
+          applySnipeExtension(auction, bidTimestamp);
           broadcast("new_bid", {
             auctionId: auction.id,
             bidder,
             amount,
             previousBid: amount,
-            timestamp: Date.now(),
+            timestamp: bidTimestamp,
             bid_id,
+            endsAt: auction.endsAt,
           });
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(
