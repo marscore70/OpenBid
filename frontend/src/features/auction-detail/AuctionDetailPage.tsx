@@ -101,8 +101,7 @@ export function AuctionDetailPage() {
     );
   }
 
-  const biddingDisabled =
-    data.status === AuctionStatus.Ended || visual === AuctionVisualStatus.Ended;
+  const biddingDisabled = data.status === AuctionStatus.Ended;
   const endedPresentation =
     data.status === AuctionStatus.Ended
       ? resolveEndedAuctionPresentation({

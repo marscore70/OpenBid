@@ -68,15 +68,16 @@ export function AuctionCard({ auction }: AuctionCardProps) {
         {bidSummaryLines.map((line) => (
           <span key={line}>{line}</span>
         ))}
-        {auction.status === AuctionStatus.Active ? (
+        {auction.status === AuctionStatus.Ended ||
+        visual === AuctionVisualStatus.Ended ? (
+          <Tag severity="secondary" value="Ended" />
+        ) : (
           <Tag
             severity={
               visual === AuctionVisualStatus.Urgent ? "danger" : "success"
             }
             value={`${countdown} left`}
           />
-        ) : (
-          <Tag severity="secondary" value="Ended" />
         )}
         {timing.snipeExtended && auction.status === AuctionStatus.Active && (
           <Tag severity="warning" value="Time extended" />

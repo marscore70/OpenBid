@@ -156,7 +156,7 @@
 
 **User:** Act as a software architect (no code). Analyze requirements/constraints/scalability/maintainability/failure cases and recommend architecture/alternatives/tradeoffs/risks/implementation plan for (A) My Bids reconcile-on-mismatch (stored bid vs auction state/history) and (B) finishing Phase 5 reconnect+reconciliation, specifically `problems.md` #2 (cold-start false reconnect) and #3 (SSE vs refetch races). Distinguish Must-do vs Nice-to-have; explicitly recommend clear vs `MyBidStatus.Stale` vs both.
 
-**AI:** Read-only architecture report. Goal B Must-do: fix `BidStreamService.connect()` to only emit `Connected` from the real `open` handler (removes the pre-open cold-start emission causing #2); add per-resource request-generation guards to `fetchAuctionsList`/`fetchAuctionDetail`; add a monotonic merge-on-fetch-commit (reusing `mergeNewBid*`'s `{auction, applied}` shape, with an `endsAt`-mismatch escape hatch for legitimate backend resets) to fix #3. Goal A Must-do: add `MyBidStatus.Stale`; new pure predicate (list not-yet-loaded ? skip; auction absent from a `Success` list ? Stale; `Active` + `amount > currentBid` ? Stale; `Ended` ? never Stale); invert `collectMyBidEntries` to iterate stored bids first (fixes an O(nï¿½m) repeated-localStorage-parse smell and makes vanished-auction entries visible instead of silently dropped); move `StoredMyBid` to its own file with a Zod shape guard. Recommendation: **Stale only, no automatic delete** - Ended auctions are always deterministic (never Stale), Active mismatches self-heal via Goal B's fixes or stay harmlessly tagged; auto-delete risks destroying real records on race-driven false positives. Manual "clear stale" UI action and `endsAt` epoch-fencing listed as Nice-to-have, along with #10/#36/#4/#19/#34 follow-ups.
+**AI:** Read-only architecture report. Goal B Must-do: fix `BidStreamService.connect()` to only emit `Connected` from the real `open` handler (removes the pre-open cold-start emission causing #2); add per-resource request-generation guards to `fetchAuctionsList`/`fetchAuctionDetail`; add a monotonic merge-on-fetch-commit (reusing `mergeNewBid*`'s `{auction, applied}` shape, with an `endsAt`-mismatch escape hatch for legitimate backend resets) to fix #3. Goal A Must-do: add `MyBidStatus.Stale`; new pure predicate (list not-yet-loaded ? skip; auction absent from a `Success` list ? Stale; `Active` + `amount > currentBid` ? Stale; `Ended` ? never Stale); invert `collectMyBidEntries` to iterate stored bids first (fixes an O(n?m) repeated-localStorage-parse smell and makes vanished-auction entries visible instead of silently dropped); move `StoredMyBid` to its own file with a Zod shape guard. Recommendation: **Stale only, no automatic delete** - Ended auctions are always deterministic (never Stale), Active mismatches self-heal via Goal B's fixes or stay harmlessly tagged; auto-delete risks destroying real records on race-driven false positives. Manual "clear stale" UI action and `endsAt` epoch-fencing listed as Nice-to-have, along with #10/#36/#4/#19/#34 follow-ups.
 
 ---
 
@@ -196,7 +196,7 @@
 
 **User:** Act as a Principal SE and implement the prior architecture agent's authoritative anti-snipe design end-to-end, under a one-time, user-granted exception to edit only `backend/server.js`: add `SNIPE_WINDOW_MS`/`SNIPE_EXTENSION_MS` constants + `applySnipeExtension(auction, bidTimestamp)`, wire it into both the bot interval and `POST /api/bid` with one shared `bidTimestamp`, add `endsAt` to both `new_bid` broadcasts, preserve the 409/end-sweep behavior; on the frontend, make `NewBidEvent.endsAt` required, Zod-validate it at the SSE boundary, drop the client's additive `+= 15_000` math (`SnipeExtensionPolicy.ts`/`applySnipeDisplayTimingOnBid.ts`) in favor of adopting the authoritative value and only flagging `snipeExtended`, fix `mergeFetchedAuctionSnapshot.ts`'s reset detector so a legitimate extension isn't mistaken for a server restart, remove "(display only)" wording, and verify `shouldClearMyBidsAfterListReconcile` needs no change; update `docs/plan.md`/`docs/problems.md` with the one-time exception and exact `backend/server.js` line numbers; run `tsc -b`/`npm test`; never touch git.
 
-**AI:** Verified the entire feature was already present in the working tree exactly as designed - `backend/server.js` lines 83?99 (`SNIPE_WINDOW_MS = 10_000`/`SNIPE_EXTENSION_MS = 15_000` + `applySnipeExtension`), lines ~176?195 (bot interval) and ~290?316 (`POST /api/bid`) both capturing one `bidTimestamp`, calling the helper, and adding `endsAt: auction.endsAt` to their `new_bid` broadcasts; the 1s end-sweep and 409 check already read the same mutated field with no changes needed. Frontend: `NewBidEvent.endsAt` required; new `sseEventSchemas.ts` (`newBidEventSchema`) wired into `parseSseMessage.ts` rejects a malformed `new_bid` (bad `endsAt`/`bid_id`/etc.) instead of adopting an unsafe value; `mergeNewBidIntoSummary`/`mergeNewBidIntoDetail` adopt `Math.max(auction.endsAt, event.endsAt)`; `SnipeExtensionPolicy.ts` contains only the defensive `resolveDisplayEndsAt` `Math.max` (no client `+= 15_000`); `applySnipeDisplayTimingOnBid.ts` is a pure "did `endsAt` increase" comparison setting `snipeExtended`; `mergeFetchedAuctionSnapshot.ts`'s reset signal is `fetched.currentBid < cached.currentBid && fetched.currentBid <= fetched.startPrice` (not a bare `endsAt` diff), with `endsAt` merged via `Math.max` otherwise; "(display only)"/"(visual only)" wording is gone (`AuctionDetailPage.tsx` reads "Snipe protection: time extended"); `shouldClearMyBidsAfterListReconcile` already matches the spec exactly and is exercised by an existing `auctionsListAtom.test.ts` integration test proving a real list reconcile invokes the clear. Confirmed `node --check backend/server.js` passes, `npx tsc -b` is clean, and `npm test` is green (147 tests, 26 files, including `mergeFetchedAuctionSnapshot.test.ts`'s authoritative-extension / stale-GET / backend-reset cases, `mergeAuctionState.test.ts`'s stack/no-double-extend cases, and `parseSseMessage.test.ts`'s accept/reject-`endsAt` cases). `docs/plan.md` ï¿½6/ï¿½8/ï¿½14/ï¿½15 and `docs/problems.md` #1/#15/Fixed-list/Testing-gaps were already updated to reflect the implemented state (evidently by a concurrent pass); this turn additionally tightened `problems.md` #1 (documented that the `new_bid` SSE gap is now closed, `auction_ended` remains the residual gap) and fixed one stale cross-reference in the Fixed list that still said the backend change was unimplemented. Did not touch git or any backend file other than confirming `backend/server.js` was untouched by this turn's doc-only edits. No code changes were required this turn - this was a verify-and-document pass; see the final response for the full report and the one open recommendation (a dedicated backend unit test is not feasible without restructuring `server.js`, which was out of scope).
+**AI:** Verified the entire feature was already present in the working tree exactly as designed - `backend/server.js` lines 83?99 (`SNIPE_WINDOW_MS = 10_000`/`SNIPE_EXTENSION_MS = 15_000` + `applySnipeExtension`), lines ~176?195 (bot interval) and ~290?316 (`POST /api/bid`) both capturing one `bidTimestamp`, calling the helper, and adding `endsAt: auction.endsAt` to their `new_bid` broadcasts; the 1s end-sweep and 409 check already read the same mutated field with no changes needed. Frontend: `NewBidEvent.endsAt` required; new `sseEventSchemas.ts` (`newBidEventSchema`) wired into `parseSseMessage.ts` rejects a malformed `new_bid` (bad `endsAt`/`bid_id`/etc.) instead of adopting an unsafe value; `mergeNewBidIntoSummary`/`mergeNewBidIntoDetail` adopt `Math.max(auction.endsAt, event.endsAt)`; `SnipeExtensionPolicy.ts` contains only the defensive `resolveDisplayEndsAt` `Math.max` (no client `+= 15_000`); `applySnipeDisplayTimingOnBid.ts` is a pure "did `endsAt` increase" comparison setting `snipeExtended`; `mergeFetchedAuctionSnapshot.ts`'s reset signal is `fetched.currentBid < cached.currentBid && fetched.currentBid <= fetched.startPrice` (not a bare `endsAt` diff), with `endsAt` merged via `Math.max` otherwise; "(display only)"/"(visual only)" wording is gone (`AuctionDetailPage.tsx` reads "Snipe protection: time extended"); `shouldClearMyBidsAfterListReconcile` already matches the spec exactly and is exercised by an existing `auctionsListAtom.test.ts` integration test proving a real list reconcile invokes the clear. Confirmed `node --check backend/server.js` passes, `npx tsc -b` is clean, and `npm test` is green (147 tests, 26 files, including `mergeFetchedAuctionSnapshot.test.ts`'s authoritative-extension / stale-GET / backend-reset cases, `mergeAuctionState.test.ts`'s stack/no-double-extend cases, and `parseSseMessage.test.ts`'s accept/reject-`endsAt` cases). `docs/plan.md` ?6/?8/?14/?15 and `docs/problems.md` #1/#15/Fixed-list/Testing-gaps were already updated to reflect the implemented state (evidently by a concurrent pass); this turn additionally tightened `problems.md` #1 (documented that the `new_bid` SSE gap is now closed, `auction_ended` remains the residual gap) and fixed one stale cross-reference in the Fixed list that still said the backend change was unimplemented. Did not touch git or any backend file other than confirming `backend/server.js` was untouched by this turn's doc-only edits. No code changes were required this turn - this was a verify-and-document pass; see the final response for the full report and the one open recommendation (a dedicated backend unit test is not feasible without restructuring `server.js`, which was out of scope).
 
 ---
 
@@ -208,7 +208,7 @@
 
 **Frontend:** `NewBidEvent.endsAt` (required); new `infrastructure/sse/sseEventSchemas.ts` (Zod, mirroring the existing `auctionSchemas.ts` REST pattern) used by `parseSseMessage.ts` so a malformed `new_bid` is dropped instead of adopting an unsafe `endsAt`; `mergeNewBidIntoSummary`/`mergeNewBidIntoDetail` adopt `Math.max(auction.endsAt, event.endsAt)`; deleted the additive `applySnipeExtensionPolicy` math from `SnipeExtensionPolicy.ts` (kept `resolveDisplayEndsAt`); simplified `applySnipeDisplayTimingOnBid.ts` to a pure "did endsAt increase" check that sets a sticky `snipeExtended` flag; removed "(display only)" from `AuctionDetailPage.tsx`. **Found and fixed a real design flaw in the architecture's suggested reset signal while implementing `mergeFetchedAuctionSnapshot.ts`:** a bare "fetched `currentBid` < cached `currentBid`" is _not_ safe on its own - it collides with the pre-existing, already-tested "stale GET loses a race against a newer SSE bid" protection (real, non-restart scenario). Fixed by requiring the fetched `currentBid` to have regressed all the way back to `startPrice` (only possible right after a genuine restart) before treating it as a reset, with `endsAt` merged via `Math.max` otherwise; updated/added tests accordingly (and adjusted one pre-existing `auctionsListAtom.test.ts` fixture that had accidentally collided with the new reset condition, without changing its intent). Added tests: authoritative-extension-accepted, stale-GET-cannot-roll-back, backend-reset-still-accepted, duplicate/out-of-order-cannot-double-extend (`mergeAuctionState.test.ts`, `mergeFetchedAuctionSnapshot.test.ts`), plus a new `parseSseMessage.test.ts` for the SSE Zod boundary. Verified `shouldClearMyBidsAfterListReconcile` needs no change (existing integration test in `auctionsListAtom.test.ts` already proves a successful list reconcile invokes the clear).
 
-**Verification:** `npx tsc -b` clean; `npm test` ? 147/147 tests green across 26 files (no regressions). Lints clean on all changed files. Did not restart the running backend/dev servers (per instruction); manual verification command for the backend change: restart the existing `node backend/server.js` terminal to pick up the edit, then place a bid within the final 10s of an auction's countdown and confirm the `new_bid` SSE payload's `endsAt` increased by 15000 and the countdown/"Time extended" tag update accordingly. Updated `docs/plan.md` (ï¿½3, ï¿½6 rewritten with exact line numbers, ï¿½8, ï¿½12, ï¿½14, new decision-log row) and `docs/problems.md` (#15 marked Fixed with full before/after + the reset-signal correction, new Fixed-list entry, testing-gaps updates). Did not touch git or any other backend file.
+**Verification:** `npx tsc -b` clean; `npm test` ? 147/147 tests green across 26 files (no regressions). Lints clean on all changed files. Did not restart the running backend/dev servers (per instruction); manual verification command for the backend change: restart the existing `node backend/server.js` terminal to pick up the edit, then place a bid within the final 10s of an auction's countdown and confirm the `new_bid` SSE payload's `endsAt` increased by 15000 and the countdown/"Time extended" tag update accordingly. Updated `docs/plan.md` (?3, ?6 rewritten with exact line numbers, ?8, ?12, ?14, new decision-log row) and `docs/problems.md` (#15 marked Fixed with full before/after + the reset-signal correction, new Fixed-list entry, testing-gaps updates). Did not touch git or any other backend file.
 
 ---
 
@@ -292,7 +292,7 @@
 
 ---
 
-## 2026-07-18 ï¿½ Strict review and implementation
+## 2026-07-18 ? Strict review and implementation
 
 **User:** change ' to " so it will be the same as my formatter
 then check what tests are useless for example test that check there own code or extrimly fragile tests
@@ -306,7 +306,7 @@ use the agent @.cursor/prompts/review.md to make this review and then the agent 
 
 ---
 
-## 2026-07-18 ï¿½ Block self-outbidding
+## 2026-07-18 ? Block self-outbidding
 
 **User:** @.cursor/prompts/implement.md
 block user from out bidding himself
@@ -314,58 +314,58 @@ block user from out bidding himself
 
 ---
 
-## 2026-07-18 ï¿½ Production gate (final review + security)
+## 2026-07-18 ? Production gate (final review + security)
 
-**User:** Final pre-prod check ï¿½ call review.md and security-review.md agents; extremely harsh; catch bad tests/code/practices/Docker/version pins; document in docs/problems.md.
+**User:** Final pre-prod check ? call review.md and security-review.md agents; extremely harsh; catch bad tests/code/practices/Docker/version pins; document in docs/problems.md.
 
 **AI:** Ran Bugbot + Security Review + harsh explore. Verdict: app logic GO for mock/dev; Docker/compose/nginx NO-GO (missing VITE_API_BASE_URL build ARG ? white screen; compose 5173/dev mounts vs nginx:80; no /api proxy + CSP localhost-only). High: authless #5 (accepted), CSP docs drift, README still claims TanStack Query, prod env crash untested. Medium: toLocaleLowerCase identity, My Bids exact === mismatch, Unicode/bidi gaps, caret deps, floating image tags, nginx root/no healthcheck. Security: no Critical XSS; npm audit 0; 183/183 tests. Open items written to docs/problems.md.
 
 ---
 
-## 2026-07-18 ï¿½ Implement production-gate findings
+## 2026-07-18 ? Implement production-gate findings
 
 **User:** call the @.cursor/prompts/implement.md agent to solve those problems right now
 
-**AI:** Implemented Critical #1ï¿½#3 (same-origin VITE_API_BASE_URL="", compose 8080 + healthchecks, nginx /api proxy + CSP connect-src 'self', unprivileged pinned nginx). Fixed README jotai claim, resolveApiBaseUrl + tests, shared bidder identity + Unicode NFKC/bidi strip, exact dep pins, Node 22 docs. Left #5 auth and feature-flag YAGNI. Verification: tsc clean, 196/196 tests, npm audit 0. Updated docs/problems.md.
+**AI:** Implemented Critical #1?#3 (same-origin VITE_API_BASE_URL="", compose 8080 + healthchecks, nginx /api proxy + CSP connect-src 'self', unprivileged pinned nginx). Fixed README jotai claim, resolveApiBaseUrl + tests, shared bidder identity + Unicode NFKC/bidi strip, exact dep pins, Node 22 docs. Left #5 auth and feature-flag YAGNI. Verification: tsc clean, 196/196 tests, npm audit 0. Updated docs/problems.md.
 
 ---
 
-## 2026-07-18 ï¿½ Opening bid copy + startPrice first bid
+## 2026-07-18 ? Opening bid copy + startPrice first bid
 
 **User:** when no bids instead of Current bid / empty Leader show bidding starts at start price; allow bidding the starting price. Use implement.md.
 **AI:** Added resolveActiveBidPresentation (opening/led/ended-without-bids) for catalog+detail. Bid validation allows startPrice with no leader. Minimal mock-server exception for opening bids (amount >= startPrice). Tests 201/201; tsc clean. Restart node server.js to pick up backend change.
 
 ---
 
-## 2026-07-18 ï¿½ Final requirements + security review then implement
+## 2026-07-18 ? Final requirements + security review then implement
 
 **User:** Verify all requirements/bonuses; technical quality; XSS/security and fix immediately; ended without bids ? closed without a sale (yellow); review.md then implement.md.
 **AI:** Review: all MUST + 4 bonuses Pass; no XSS sinks; npm audit 0. Implemented Closed without a sale (warning), suppressed duplicate ended lines, safer errorMessage UI + getBidValidationMessage. tsc clean; 201/201 tests.
 
 ---
 
-## 2026-07-18 ï¿½ Revert frontend to match stock server bid rule
+## 2026-07-18 ? Revert frontend to match stock server bid rule
 
 **User:** Do not change server; reverting opening-bid server lines; make frontend work with amount > currentBid; call reviewer when done.
 **AI:** Restored minimumAllowedBid / Zod to require amount > max(currentBid, startPrice) (first bid startPrice+1). Removed currentBidder from validation API. Kept opening display copy. Backend untouched. tsc clean; 200/200 tests. Launching reviewer.
 
 ---
 
-## 2026-07-18 ï¿½ Reviewer after bid-rule realign
+## 2026-07-18 ? Reviewer after bid-rule realign
 
 **User:** (reviewer after frontend match to stock server)
 **AI:** Bugbot: Medium - Opening copy when null leader but currentBid > startPrice. Fixed Opening to require currentBid <= startPrice. Validation aligned with amount > currentBid. 201 tests.
 
 ---
 
-## 2026-07-18 ï¿½ Opening min=startPrice, remove feature flags, pin backend Docker
+## 2026-07-18 ? Opening min=startPrice, remove feature flags, pin backend Docker
 
 **User:** min bid = starting price not +1; fix feature flags YAGNI; implement.md then harsh review.md; no server.js but Dockerfile OK.
 **AI:** Client opening floor = startPrice; removed features.ts; pinned backend Dockerfile node:22.17.0-alpine. Documented High #22 stock server 400 on amount===startPrice. 201 tests. Launching harsh review.
 
 ---
 
-## 2026-07-18 ï¿½ Harsh final review after implement
+## 2026-07-18 ? Harsh final review after implement
 
 **User:** (review.md after min=startPrice + feature flags)
 **AI:** Reviewer NO-GO: Critical #22 client/server opening-bid mismatch (default form 400). Feature flags clean; Dockerfile pin OK; README snipe lie fixed. Need explicit server.js exception OR revert client to startPrice+1.
@@ -384,9 +384,24 @@ for example why we need validations etc
 
 ---
 
-## 2026-07-18 — Follow-up on architecture mapping agents
+## 2026-07-18 ? Follow-up on architecture mapping agents
 
 **User:** Perform any necessary follow-up actions in response to the subagent completion.
 **AI:** Reviewed [Map project architecture](6d7fcde4-293a-45ac-973d-9b800234db39) drift notes. Opening-bid contract was already restored to startPrice+1. Corrected remaining docs drift: plan/summery no longer claim a virtualized history table (scrollable DataTable only).
+
+---
+
+## 2026-07-18 ? Review bid-history chart windowing
+
+**User:** Act as a senior engineer reviewing the current uncommitted frontend change? make the smallest possible change to make the bid-history chart virtualized? Review only buildBidHistoryChartModel.ts + test. Do not implement or edit anything. NEVER run git commands.
+**AI:** Review findings: High ? newest window uses array-tail `slice` without timestamp sort/invariant (cold fetch/reset bypasses sorted union). Medium ? weak/missing window tests (identical timestamps; labels/length/boundaries); silent truncation with no model signal; caller still O(n) Y-max over full history. Low ? dual `.map`, coincident `100` consts, magic empty-label string in tests.
+
+---
+
+## [2026-07-18] Pre-submission frontend debug audit
+
+**User:** Act as a debugging expert for OpenBid at e:\OpenBid (frontend only). Do not immediately change code. Identify possible root causes of bugs / demo failures / race conditions / stale state / SSE issues / bid form issues / My Bids issues / reconnect issues; explain reasoning; suggest verification; only then propose fixes (describe, do not implement). Search thoroughly. Return ranked risk list for pre-submission.
+
+**AI:** Read-only audit. Top risks: (1) HTTP 400 outbid patches currentBid without currentBidder and equal-amount SSE merge no-ops after consume ? stuck wrong leader / self-outbid / My Bids Winning; (2) place-bid success optimistic currentBid causes SSE to skip endsAt/history ? catalog snipe stale, chart lag until GET; (3) fetchAuctionsList Loading early-return drops reconnect reconcile; (4) My Bids clear-all false-negative on partial reset; plus clock drift visual Ended, InvalidBidResponseError false recordMyBid, StrictMode SSE gap, integration test holes. Fixes described only ? no code changes.
 
 ---

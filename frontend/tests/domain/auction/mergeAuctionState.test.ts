@@ -56,10 +56,16 @@ describe("merge auction state", () => {
     expect(result.auction.bidCount).toBe(1);
   });
 
-  it("does not apply new_bid when amount is not greater than currentBid", () => {
+  it("does not apply new_bid when amount is strictly lower than currentBid", () => {
     const timing = createDisplayTimingRegistry();
+    const ahead = {
+      ...baseAuction,
+      currentBid: 150,
+      currentBidder: "Noa",
+      bidCount: 1,
+    };
     const result = mergeNewBidIntoSummary(
-      baseAuction,
+      ahead,
       {
         auctionId: "a1",
         bidder: "Ron",
@@ -67,12 +73,86 @@ describe("merge auction state", () => {
         previousBid: 90,
         timestamp: Date.now(),
         bid_id: "bid_stale",
-        endsAt: baseEndsAt,
+        endsAt: baseEndsAt + 999_999,
       },
       timing,
     );
     expect(result.applied).toBe(false);
-    expect(result.auction).toBe(baseAuction);
+    expect(result.auction).toBe(ahead);
+  });
+
+  it("reconciles equal-amount new_bid for endsAt and bidder after HTTP already raised the floor", () => {
+    const timing = createDisplayTimingRegistry();
+    const afterHttp = {
+      ...baseAuction,
+      currentBid: 110,
+      currentBidder: "Local",
+      bidCount: 1,
+      endsAt: baseEndsAt,
+    };
+    const extendedEndsAt = baseEndsAt + 15_000;
+    const result = mergeNewBidIntoSummary(
+      afterHttp,
+      {
+        auctionId: "a1",
+        bidder: "Ron",
+        amount: 110,
+        previousBid: 100,
+        timestamp: Date.now(),
+        bid_id: "bid_equal",
+        endsAt: extendedEndsAt,
+      },
+      timing,
+    );
+    expect(result.applied).toBe(true);
+    expect(result.auction.currentBid).toBe(110);
+    expect(result.auction.currentBidder).toBe("Ron");
+    expect(result.auction.endsAt).toBe(extendedEndsAt);
+    expect(result.auction.bidCount).toBe(1);
+    expect(timing.get("a1", baseEndsAt).snipeExtended).toBe(true);
+  });
+
+  it("reconciles equal-amount detail new_bid into bid history without double-counting", () => {
+    const timing = createDisplayTimingRegistry();
+    const afterHttp: AuctionDetail = {
+      ...baseDetail,
+      currentBid: 120,
+      currentBidder: "Noa",
+      bidHistory: [],
+    };
+    const timestamp = Date.now();
+    const first = mergeNewBidIntoDetail(
+      afterHttp,
+      {
+        auctionId: "a1",
+        bidder: "Noa",
+        amount: 120,
+        previousBid: 100,
+        timestamp,
+        bid_id: "bid_eq_d1",
+        endsAt: baseEndsAt + 15_000,
+      },
+      timing,
+    );
+    expect(first.applied).toBe(true);
+    expect(first.auction.bidHistory).toHaveLength(1);
+    expect(first.auction.endsAt).toBe(baseEndsAt + 15_000);
+
+    const again = mergeNewBidIntoDetail(
+      first.auction,
+      {
+        auctionId: "a1",
+        bidder: "Noa",
+        amount: 120,
+        previousBid: 100,
+        timestamp,
+        bid_id: "bid_eq_d1_dup",
+        endsAt: baseEndsAt + 15_000,
+      },
+      timing,
+    );
+    expect(again.applied).toBe(true);
+    expect(again.auction.bidHistory).toHaveLength(1);
   });
 
   it("does not apply new_bid when auctionId mismatches", () => {

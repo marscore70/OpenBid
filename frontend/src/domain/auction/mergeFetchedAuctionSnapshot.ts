@@ -57,11 +57,18 @@ export function mergeFetchedAuctionSummary(
   }
 
   const bidAdvanced = fetched.currentBid > cached.currentBid;
+  const bidTied = fetched.currentBid === cached.currentBid;
   return {
     ...fetched,
     status: resolveMonotonicStatus(cached.status, fetched.status),
     currentBid: bidAdvanced ? fetched.currentBid : cached.currentBid,
-    currentBidder: bidAdvanced ? fetched.currentBidder : cached.currentBidder,
+    // Tied amount: fill a missing leader from GET (e.g. after a cautious 400
+    // cleared self) without letting a stale fetch overwrite a known leader.
+    currentBidder: bidAdvanced
+      ? fetched.currentBidder
+      : bidTied && cached.currentBidder === null
+        ? fetched.currentBidder
+        : cached.currentBidder,
     // Tied to the same branch as currentBid/currentBidder: bidCount only
     // moves in lockstep with a genuinely-ahead fetch, never independently
     // (an independent Math.max could adopt a stale fetch's bidCount whenever
@@ -83,11 +90,16 @@ export function mergeFetchedAuctionDetail(
   }
 
   const bidAdvanced = fetched.currentBid > cached.currentBid;
+  const bidTied = fetched.currentBid === cached.currentBid;
   return {
     ...fetched,
     status: resolveMonotonicStatus(cached.status, fetched.status),
     currentBid: bidAdvanced ? fetched.currentBid : cached.currentBid,
-    currentBidder: bidAdvanced ? fetched.currentBidder : cached.currentBidder,
+    currentBidder: bidAdvanced
+      ? fetched.currentBidder
+      : bidTied && cached.currentBidder === null
+        ? fetched.currentBidder
+        : cached.currentBidder,
     bidHistory: unionBidHistory(cached.bidHistory, fetched.bidHistory),
     endsAt: Math.max(cached.endsAt, fetched.endsAt),
   };

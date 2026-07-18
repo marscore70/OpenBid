@@ -118,6 +118,10 @@ export class BidStreamService {
       this.setStatus(SseConnectionStatus.Disconnected);
       return;
     }
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.setStatus(SseConnectionStatus.Reconnecting);
     const delay = Math.min(
       MAX_RECONNECT_MS,
